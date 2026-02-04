@@ -1,6 +1,57 @@
-# bracelet-website
+# 手串定制网站
 
+一个基于 Next.js 的手串定制电商网站，支持用户自定义设计专属手串。
 
+## 功能特性
+
+- 🎨 **手串定制**：可视化配置手串样式
+- 🛒 **购物车**：管理定制订单
+- 👥 **广场**：浏览其他用户的设计作品
+- 👤 **个人中心**：管理订单和个人信息
+
+## 技术栈
+
+- **框架**：Next.js 14 (App Router)
+- **语言**：TypeScript
+- **样式**：Tailwind CSS
+- **图标**：Lucide React
+
+## 开始使用
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 开发模式
+
+```bash
+npm run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000) 查看网站。
+
+### 构建生产版本
+
+```bash
+npm run build
+npm start
+```
+
+## 项目结构
+
+```
+bracelet-website/
+├── app/                    # Next.js App Router
+│   ├── workspace/          # 工作台（手串定制页面）
+│   ├── square/             # 广场
+│   ├── cart/               # 购物车
+│   └── profile/            # 个人中心
+├── components/             # React 组件
+│   └── Navigation.tsx      # 导航栏
+└── public/                 # 静态资源
+```
 
 ## Getting started
 
