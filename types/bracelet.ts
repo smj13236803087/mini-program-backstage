@@ -27,6 +27,9 @@ export interface BraceletItem {
   price: number
   color: string
   image?: string
+  // 尺寸信息（毫米）
+  diameter?: number // 直径（毫米）
+  weight?: number // 重量（克）
 }
 
 // 手串配置

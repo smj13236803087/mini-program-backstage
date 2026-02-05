@@ -164,3 +164,31 @@ export function getProductWeight(product: ShopifyProduct): string | null {
 
   return null
 }
+
+/**
+ * 解析直径字符串，如 "6mm" -> 6（毫米）
+ */
+export function parseDiameter(diameterStr: string): number | undefined {
+  if (!diameterStr) return undefined
+  
+  // 提取数字部分，如 "6mm" -> 6
+  const match = diameterStr.match(/(\d+\.?\d*)/)
+  if (match) {
+    return parseFloat(match[1])
+  }
+  return undefined
+}
+
+/**
+ * 解析重量字符串，如 "1.65g" -> 1.65（克）
+ */
+export function parseWeight(weightStr: string): number | undefined {
+  if (!weightStr) return undefined
+  
+  // 提取数字部分，如 "1.65g" -> 1.65
+  const match = weightStr.match(/(\d+\.?\d*)/)
+  if (match) {
+    return parseFloat(match[1])
+  }
+  return undefined
+}

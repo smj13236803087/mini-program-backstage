@@ -10,6 +10,8 @@ import {
   getProductPrice,
   getProductDiameter,
   getProductWeight,
+  parseDiameter,
+  parseWeight,
 } from '@/lib/shopify/product-mapper'
 
 interface ConfigPanelProps {
@@ -19,7 +21,9 @@ interface ConfigPanelProps {
     name: string,
     price: number,
     color: string,
-    image?: string
+    image?: string,
+    diameter?: number,
+    weight?: number
   ) => void
   onAddAccessory: (
     category: AccessoryCategory,
@@ -27,13 +31,17 @@ interface ConfigPanelProps {
     name: string,
     price: number,
     color: string,
-    image?: string
+    image?: string,
+    diameter?: number,
+    weight?: number
   ) => void
   onAddPendant: (
     name: string,
     price: number,
     color: string,
-    image?: string
+    image?: string,
+    diameter?: number,
+    weight?: number
   ) => void
 }
 
@@ -111,6 +119,10 @@ export default function ConfigPanel({
     const image = getProductImage(product)
     // 使用商品标题作为子类型名称
     const subType = product.title
+    const diameterStr = getProductDiameter(product)
+    const weightStr = getProductWeight(product)
+    const diameter = diameterStr ? parseDiameter(diameterStr) : undefined
+    const weight = weightStr ? parseWeight(weightStr) : undefined
 
     onAddBead(
       selectedBeadCategory,
@@ -118,7 +130,9 @@ export default function ConfigPanel({
       product.title,
       price,
       '#8b4513', // 默认颜色，可以从商品图片提取或使用占位色
-      image
+      image,
+      diameter,
+      weight
     )
     resetBeadSelection()
   }
@@ -135,6 +149,10 @@ export default function ConfigPanel({
     const price = getProductPrice(product)
     const image = getProductImage(product)
     const subType = product.title
+    const diameterStr = getProductDiameter(product)
+    const weightStr = getProductWeight(product)
+    const diameter = diameterStr ? parseDiameter(diameterStr) : undefined
+    const weight = weightStr ? parseWeight(weightStr) : undefined
 
     onAddAccessory(
       selectedAccessoryCategory,
@@ -142,7 +160,9 @@ export default function ConfigPanel({
       product.title,
       price,
       '#8b4513',
-      image
+      image,
+      diameter,
+      weight
     )
     resetAccessorySelection()
   }
@@ -151,8 +171,12 @@ export default function ConfigPanel({
   const handleSelectPendantProduct = (product: ShopifyProduct) => {
     const price = getProductPrice(product)
     const image = getProductImage(product)
+    const diameterStr = getProductDiameter(product)
+    const weightStr = getProductWeight(product)
+    const diameter = diameterStr ? parseDiameter(diameterStr) : undefined
+    const weight = weightStr ? parseWeight(weightStr) : undefined
 
-    onAddPendant(product.title, price, '#8b4513', image)
+    onAddPendant(product.title, price, '#8b4513', image, diameter, weight)
   }
 
   if (loading) {
