@@ -16,16 +16,14 @@ export interface BraceletItem {
   type: BraceletItemType
   // 珠子相关
   beadCategory?: BeadCategory
-  beadSubType?: string // 子类型名称，如"冰曜石"
-  beadSize?: number // 尺寸（毫米），如6, 8, 10
+  beadSubType?: string // 子类型名称，如商品标题
   // 配饰相关
   accessoryCategory?: AccessoryCategory
-  accessorySubType?: string // 子类型名称，如"金片隔珠"
-  accessorySize?: number // 尺寸（毫米），如6, 8, 10
+  accessorySubType?: string // 子类型名称，如商品标题
   // 吊坠相关
   pendantType?: PendantType
   // 显示信息
-  name: string // 完整名称，如"冰曜石 8mm"
+  name: string // 商品名称
   price: number
   color: string
   image?: string

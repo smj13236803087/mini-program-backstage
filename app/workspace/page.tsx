@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { BraceletItem, BeadCategory, AccessoryCategory } from '@/types/bracelet'
-import { pendantConfig } from '@/lib/bead-config/beads'
 import { calculateTotalPrice, generateId } from '@/lib/pricing/calculator'
 import ConfigPanel from '@/components/workspace/ConfigPanel'
 import BraceletPreview from '@/components/workspace/BraceletPreview'
@@ -18,20 +17,20 @@ export default function Workspace() {
   const handleAddBead = (
     category: BeadCategory,
     subType: string,
-    size: number,
     name: string,
     price: number,
-    color: string
+    color: string,
+    image?: string
   ) => {
     const newItem: BraceletItem = {
       id: generateId(),
       type: 'bead',
       beadCategory: category,
       beadSubType: subType,
-      beadSize: size,
       name: name,
       price: price,
       color: color,
+      image: image,
     }
     setItems([...items, newItem])
   }
@@ -40,33 +39,39 @@ export default function Workspace() {
   const handleAddAccessory = (
     category: AccessoryCategory,
     subType: string,
-    size: number,
     name: string,
     price: number,
-    color: string
+    color: string,
+    image?: string
   ) => {
     const newItem: BraceletItem = {
       id: generateId(),
       type: 'accessory',
       accessoryCategory: category,
       accessorySubType: subType,
-      accessorySize: size,
       name: name,
       price: price,
       color: color,
+      image: image,
     }
     setItems([...items, newItem])
   }
 
   // 添加吊坠
-  const handleAddPendant = () => {
+  const handleAddPendant = (
+    name: string,
+    price: number,
+    color: string,
+    image?: string
+  ) => {
     const newItem: BraceletItem = {
       id: generateId(),
       type: 'pendant',
       pendantType: 'pendant',
-      name: pendantConfig.name,
-      price: pendantConfig.price,
-      color: pendantConfig.color,
+      name: name,
+      price: price,
+      color: color,
+      image: image,
     }
     setItems([...items, newItem])
   }
