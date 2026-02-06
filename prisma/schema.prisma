@@ -1,0 +1,24 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // 可以改为 "mysql" 或 "sqlite" 根据你的数据库类型
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String   // 存储加密后的密码
+  name             String?
+  shopifyCustomerId String? @unique // Shopify 客户 ID，用于同步
+  shopifyEmail    String?  // Shopify 客户邮箱（用于匹配）
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("users")
+}
