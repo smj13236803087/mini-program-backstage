@@ -22,3 +22,15 @@ model User {
 
   @@map("users")
 }
+
+model PendingUser {
+  email            String   @id
+  name             String
+  password         String
+  verificationCode String
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("pending_users")
+}
