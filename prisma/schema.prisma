@@ -20,6 +20,9 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // 关联：用户的手串作品集
+  braceletDesigns  BraceletDesign[]
+
   @@map("users")
 }
 
@@ -33,4 +36,22 @@ model PendingUser {
   updatedAt        DateTime @updatedAt
 
   @@map("pending_users")
+}
+
+model BraceletDesign {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  name            String   // 作品名称
+  totalPrice      Float    // 总价格
+  totalWeight     Float?   // 总重量（克）
+  averageDiameter Float?   // 平均直径（毫米）
+  wristSize       Float?   // 设计时的手围（厘米）
+  wearingStyle    String?  // single / double
+  items           Json     // BraceletItem[]，包含顺序和位置
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("bracelet_designs")
 }

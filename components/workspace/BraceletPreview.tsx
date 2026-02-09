@@ -10,6 +10,10 @@ interface BraceletPreviewProps {
   onReorderItems: (newItems: BraceletItem[]) => void
   wristSize: number | null
   wearingStyle: WearingStyle | null
+  /** 可选：整体尺寸（px），默认 400，用于在不同卡片里缩放 */
+  size?: number
+  /** 可选：是否隐藏提示文案（用于作品集卡片等场景） */
+  hideTips?: boolean
 }
 
 interface ContextMenu {
@@ -24,6 +28,8 @@ export default function BraceletPreview({
   onReorderItems,
   wristSize,
   wearingStyle,
+  size = 400,
+  hideTips = false,
 }: BraceletPreviewProps) {
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null)
@@ -36,9 +42,10 @@ export default function BraceletPreview({
     itemsRef.current = items
   }, [items])
 
-  const centerX = 200
-  const centerY = 200
-  const baseRadius = 120 // 基础半径
+  // 根据传入尺寸计算中心和半径
+  const centerX = size / 2
+  const centerY = size / 2
+  const baseRadius = size * 0.3 // 基础半径，约占整体的 60%
   
   // 默认直径（毫米），如果没有指定则使用8mm
   const defaultDiameter = 8
@@ -369,12 +376,12 @@ export default function BraceletPreview({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-8 flex flex-col items-center justify-center relative">
-      {exceedsLimit && (
+      {!hideTips && exceedsLimit && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           已达到设定手围！当前周长：{currentCircumference.toFixed(1)}cm，最大周长：{maxCircumference?.toFixed(1)}cm
         </div>
       )}
-      {reachesLimit && !exceedsLimit && (
+      {!hideTips && reachesLimit && !exceedsLimit && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
           已完美匹配设定手围！手串已自动调整为完美圆形
         </div>
@@ -385,11 +392,11 @@ export default function BraceletPreview({
         </div>
       ) : (
         <>
-        <div className="relative">
+        <div className="relative" style={{ width: size, height: size }}>
             <svg
               ref={svgRef}
-              width="400"
-              height="400"
+              width={size}
+              height={size}
               className="overflow-visible"
             >
             {/* 手串圆形路径 */}
