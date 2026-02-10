@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql" // 可以改为 "mysql" 或 "sqlite" 根据你的数据库类型
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -22,6 +22,11 @@ model User {
 
   // 关联：用户的手串作品集
   braceletDesigns  BraceletDesign[]
+
+  // 关联：用户的收货地址（我的地址）
+  addresses        Address[]
+  defaultAddressId String?  @unique
+  defaultAddress   Address? @relation("DefaultAddress", fields: [defaultAddressId], references: [id])
 
   @@map("users")
 }
@@ -54,4 +59,35 @@ model BraceletDesign {
 
   @@index([userId])
   @@map("bracelet_designs")
+}
+
+/// 收货地址（一个用户可以有多个地址）
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  // 收件人信息
+  recipient   String   // 收件人姓名
+  phone       String   // 手机号
+
+  // 详细地址信息
+  country     String   @default("中国")
+  province    String
+  city        String
+  district    String
+  detail      String   // 详细街道门牌
+  postalCode  String?  // 邮编
+
+  // 辅助信息
+  tag         String?  // 家/公司/学校 等标签
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 反向关联：如果这个地址被设为用户默认地址
+  defaultForUser User? @relation("DefaultAddress")
+
+  @@index([userId])
+  @@map("addresses")
 }

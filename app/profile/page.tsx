@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  MapPin,
 } from 'lucide-react'
 
 type User = {
@@ -187,7 +188,26 @@ export default function Profile() {
             </div>
           </button>
 
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/addresses')}
+            className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 flex items-center justify-between hover:shadow-2xl hover:-translate-y-1 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-base font-semibold text-gray-900">
+                  我的地址
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  管理你的收货地址信息
+                </div>
+              </div>
+            </div>
+          </button>
+
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 flex items-center justify-between md:col-span-2">
             <div className="text-left">
               <div className="text-base font-semibold text-gray-900 mb-1">
                 账户操作
