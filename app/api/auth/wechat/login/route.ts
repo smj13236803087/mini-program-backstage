@@ -70,11 +70,10 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    const userName = body.nickName || '微信用户'
+    
     if (!user) {
       // 创建新用户
-      // 使用微信昵称作为name，如果没有则使用默认值
-      const userName = body.nickName || '微信用户'
-      
       // 先创建本地用户
       user = await prisma.user.create({
         data: {
@@ -84,9 +83,21 @@ export async function POST(req: NextRequest) {
           shopifyEmail: wechatEmail,
         },
       })
+    } else {
+      // 更新用户信息（如果提供了新的昵称或头像信息）
+      if (body.nickName && body.nickName !== user.name) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { name: body.nickName },
+        })
+        user.name = body.nickName
+      }
+    }
 
-      // 尝试同步到Shopify（可选，如果失败不影响登录）
+    // 同步到Shopify（新用户或没有shopifyCustomerId的已存在用户）
+    if (!user.shopifyCustomerId) {
       try {
+        console.log('开始同步用户到Shopify:', { email: wechatEmail, name: userName })
         const customer = await createOrGetShopifyCustomer({
           email: wechatEmail,
           name: userName,
@@ -99,18 +110,25 @@ export async function POST(req: NextRequest) {
             shopifyEmail: customer.email,
           },
         })
-      } catch (shopifyErr) {
-        // Shopify同步失败不影响登录，只记录日志
-        console.warn('Shopify同步失败（微信登录）：', shopifyErr)
-      }
-    } else {
-      // 更新用户信息（如果提供了新的昵称或头像信息）
-      if (body.nickName && body.nickName !== user.name) {
-        await prisma.user.update({
+        
+        // 重新获取用户信息以包含shopifyCustomerId
+        const updatedUser = await prisma.user.findUnique({
           where: { id: user.id },
-          data: { name: body.nickName },
         })
-        user.name = body.nickName
+        
+        if (updatedUser) {
+          user = updatedUser
+        }
+        
+        console.log('Shopify同步成功:', { customerId: customer.id, userId: user.id })
+      } catch (shopifyErr) {
+        // Shopify同步失败不影响登录，但记录详细错误
+        console.error('Shopify同步失败（微信登录）：', {
+          error: shopifyErr instanceof Error ? shopifyErr.message : String(shopifyErr),
+          stack: shopifyErr instanceof Error ? shopifyErr.stack : undefined,
+          email: wechatEmail,
+          userId: user.id,
+        })
       }
     }
 
