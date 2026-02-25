@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { isValidEmail, signSession } from '@/lib/security'
-import { createOrGetShopifyCustomer } from '@/lib/shopify/admin'
 
 const SESSION_DAYS = 7
 
@@ -36,35 +35,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '该邮箱已注册' }, { status: 409 })
     }
 
-    // 先创建本地用户；随后同步 Shopify customer。如果同步失败，删除本地用户，保证一致性
+    // 先创建本地用户（不再同步 Shopify）
     const user = await prisma.user.create({
       data: {
         email,
         password: pending.password,
         name: pending.name,
-        shopifyEmail: email,
       },
     })
-
-    try {
-      const customer = await createOrGetShopifyCustomer({
-        email,
-        name: pending.name,
-      })
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          shopifyCustomerId: String(customer.id),
-          shopifyEmail: customer.email,
-        },
-      })
-    } catch (shopifyErr) {
-      await prisma.user.delete({ where: { id: user.id } }).catch(() => {})
-      throw shopifyErr
-    } finally {
-      await prisma.pendingUser.delete({ where: { email } }).catch(() => {})
-    }
+    await prisma.pendingUser.delete({ where: { email } }).catch(() => {})
 
     // 自动登录：写 session cookie
     const now = Math.floor(Date.now() / 1000)

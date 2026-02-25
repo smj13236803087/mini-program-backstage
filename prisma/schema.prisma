@@ -10,13 +10,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// 小程序 / 后台商品表（取代 Shopify 商品作为小程序商品来源）
+model Product {
+  id          String   @id @default(cuid())
+
+  /// 商品名称（原 Shopify 的 title）
+  title       String
+
+  /// 商品类型，对应 Shopify 的 product_type（用于 categorizeProducts）
+  productType String
+
+  /// 主图地址
+  imageUrl    String?
+
+  /// 轮播图等图片列表（JSON 数组，元素对象需包含 src 字段）
+  images      Json?
+
+  /// 基础单价（元），对应 variants[0].price
+  price       Decimal  @db.Decimal(10, 2)
+
+  /// 直径选项，例如 "8mm"（用于 options: name=diameter）
+  diameter    String?
+
+  /// 重量选项，例如 "1.65g"（用于 options: name=weight）
+  weight      String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
   id               String   @id @default(cuid())
   email            String   @unique
   password         String   // 存储加密后的密码
   name             String?
-  shopifyCustomerId String? @unique // Shopify 客户 ID，用于同步
-  shopifyEmail    String?  // Shopify 客户邮箱（用于匹配）
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

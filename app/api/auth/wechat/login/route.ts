@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { signSession } from '@/lib/security'
-import { createOrGetShopifyCustomer } from '@/lib/shopify/admin'
 
 const SESSION_DAYS = 7
 
@@ -73,14 +72,12 @@ export async function POST(req: NextRequest) {
     const userName = body.nickName || '微信用户'
     
     if (!user) {
-      // 创建新用户
-      // 先创建本地用户
+      // 创建本地用户（仅在本系统内管理，不再同步 Shopify）
       user = await prisma.user.create({
         data: {
           email: wechatEmail,
           password: '', // 微信登录不需要密码，但schema要求有password字段，使用空字符串
           name: userName,
-          shopifyEmail: wechatEmail,
         },
       })
     } else {
@@ -91,44 +88,6 @@ export async function POST(req: NextRequest) {
           data: { name: body.nickName },
         })
         user.name = body.nickName
-      }
-    }
-
-    // 同步到Shopify（新用户或没有shopifyCustomerId的已存在用户）
-    if (!user.shopifyCustomerId) {
-      try {
-        console.log('开始同步用户到Shopify:', { email: wechatEmail, name: userName })
-        const customer = await createOrGetShopifyCustomer({
-          email: wechatEmail,
-          name: userName,
-        })
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            shopifyCustomerId: String(customer.id),
-            shopifyEmail: customer.email,
-          },
-        })
-        
-        // 重新获取用户信息以包含shopifyCustomerId
-        const updatedUser = await prisma.user.findUnique({
-          where: { id: user.id },
-        })
-        
-        if (updatedUser) {
-          user = updatedUser
-        }
-        
-        console.log('Shopify同步成功:', { customerId: customer.id, userId: user.id })
-      } catch (shopifyErr) {
-        // Shopify同步失败不影响登录，但记录详细错误
-        console.error('Shopify同步失败（微信登录）：', {
-          error: shopifyErr instanceof Error ? shopifyErr.message : String(shopifyErr),
-          stack: shopifyErr instanceof Error ? shopifyErr.stack : undefined,
-          email: wechatEmail,
-          userId: user.id,
-        })
       }
     }
 
@@ -150,7 +109,6 @@ export async function POST(req: NextRequest) {
           id: user.id,
           email: user.email,
           name: user.name,
-          shopifyCustomerId: user.shopifyCustomerId,
         },
       },
       { status: 200 }
