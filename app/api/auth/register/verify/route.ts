@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
         email,
         password: pending.password,
         name: pending.name,
-      },
-    })
-    await prisma.pendingUser.delete({ where: { email } }).catch(() => {})
+        },
+      })
+      await prisma.pendingUser.delete({ where: { email } }).catch(() => {})
 
     // 自动登录：写 session cookie
     const now = Math.floor(Date.now() / 1000)

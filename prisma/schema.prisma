@@ -55,6 +55,9 @@ model User {
   defaultAddressId String?  @unique
   defaultAddress   Address? @relation("DefaultAddress", fields: [defaultAddressId], references: [id])
 
+  // 关联：用户的购物车
+  carts           Cart[]
+
   @@map("users")
 }
 
@@ -118,3 +121,41 @@ model Address {
   @@index([userId])
   @@map("addresses")
 }
+
+/// 购物车（一个用户可以有一个或多个购物车记录，这里简单设计为一个用户一个活跃购物车）
+model Cart {
+  id        String     @id @default(cuid())
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+
+  items     CartItem[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+/// 购物车条目：保存手串设计的快照
+model CartItem {
+  id        String   @id @default(cuid())
+
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id])
+
+  /// 该设计在购物车中的名称（通常来自 designName）
+  name      String?
+
+  /// 手串设计快照：包含 items、wristSize、wearingStyle、totalPrice 等
+  design    Json
+
+  /// 设计总价（元）
+  totalPrice Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cartId])
+}
+
