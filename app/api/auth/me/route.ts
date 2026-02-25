@@ -23,7 +23,7 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
-    select: { id: true, email: true, name: true, shopifyCustomerId: true },
+    select: { id: true, email: true, name: true },
   })
 
   return NextResponse.json({ user }, { status: 200 })
