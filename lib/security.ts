@@ -53,6 +53,7 @@ function base64UrlDecodeToBuffer(s: string) {
 export type SessionPayload = {
   sub: string
   email: string
+  user_id?: string
   iat: number
   exp: number
 }
@@ -91,13 +92,23 @@ export function verifySession(token: string): SessionPayload | null {
 
   const payloadJson = base64UrlDecodeToBuffer(payloadPart).toString('utf8')
   const payload = JSON.parse(payloadJson) as SessionPayload
-  if (!payload?.sub || !payload?.email || !payload?.exp) return null
+  // 支持 user_id 或 sub
+  if ((!payload?.sub && !payload?.user_id) || !payload?.email || !payload?.exp) return null
   if (Date.now() / 1000 > payload.exp) return null
   return payload
 }
 
+/**
+ * 从 token 获取 user_id
+ */
+export function getUserIdFromToken(token: string): string | null {
+  const payload = verifySession(token)
+  if (!payload) return null
+  return payload.user_id || payload.sub || null
+}
+
 export function isValidEmail(email: string) {
-  // 简单校验：够用即可
+  // 简单校验
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
