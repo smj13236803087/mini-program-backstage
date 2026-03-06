@@ -3,18 +3,33 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/security'
 
-function getUserIdFromCookie() {
-  const token = cookies().get('session')?.value
+function getTokenFromReq(req: NextRequest): string | null {
+  const h = req.headers.get('x-equilune-token')
+  if (h) return h
+  const auth = req.headers.get('authorization')
+  if (auth) return auth.replace('Bearer ', '')
+  return cookies().get('session')?.value || null
+}
+
+function getUserIdFromReq(req: NextRequest): string | null {
+  const token = getTokenFromReq(req)
   if (!token) return null
-  const payload = verifySession(token)
-  return payload?.sub ?? null
+  const payload = (() => {
+    try {
+      return verifySession(token)
+    } catch {
+      return null
+    }
+  })()
+  if (!payload) return null
+  return payload.user_id || payload.sub || null
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserIdFromCookie()
+  const userId = getUserIdFromReq(req)
   if (!userId) {
     return NextResponse.json({ error: '未登录' }, { status: 401 })
   }
@@ -34,14 +49,13 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserIdFromCookie()
+  const userId = getUserIdFromReq(req)
   if (!userId) {
     return NextResponse.json({ error: '未登录' }, { status: 401 })
   }
 
   try {
     const body = (await req.json()) as {
-      name?: string
       items?: unknown
       totalPrice?: number
       totalWeight?: number | null
@@ -51,7 +65,6 @@ export async function PUT(
     }
 
     const data: any = {}
-    if (body.name !== undefined) data.name = body.name.trim() || '未命名作品'
     if (body.items !== undefined) {
       if (!Array.isArray(body.items)) {
         return NextResponse.json({ error: '设计内容格式不正确' }, { status: 400 })
@@ -81,10 +94,10 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserIdFromCookie()
+  const userId = getUserIdFromReq(req)
   if (!userId) {
     return NextResponse.json({ error: '未登录' }, { status: 401 })
   }

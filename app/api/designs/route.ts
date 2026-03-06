@@ -3,23 +3,39 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/security'
 
-export async function GET() {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ designs: [] }, { status: 200 })
-  }
+function getTokenFromReq(req: NextRequest): string | null {
+  const h = req.headers.get('x-equilune-token')
+  if (h) return h
+  const auth = req.headers.get('authorization')
+  if (auth) return auth.replace('Bearer ', '')
+  return cookies().get('session')?.value || null
+}
 
-  const payload = verifySession(token)
-  if (!payload) {
+function getUserIdFromReq(req: NextRequest): string | null {
+  const token = getTokenFromReq(req)
+  if (!token) return null
+  const payload = (() => {
+    try {
+      return verifySession(token)
+    } catch {
+      return null
+    }
+  })()
+  if (!payload) return null
+  return payload.user_id || payload.sub || null
+}
+
+export async function GET(req: NextRequest) {
+  const userId = getUserIdFromReq(req)
+  if (!userId) {
     return NextResponse.json({ designs: [] }, { status: 200 })
   }
 
   const designs = await prisma.braceletDesign.findMany({
-    where: { userId: payload.sub },
+    where: { userId },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      name: true,
       totalPrice: true,
       totalWeight: true,
       averageDiameter: true,
@@ -34,20 +50,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
-
-  const payload = verifySession(token)
-  if (!payload) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+  const userId = getUserIdFromReq(req)
+  if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   try {
     const body = (await req.json()) as {
       id?: string
-      name?: string
       items: unknown
       totalPrice: number
       totalWeight?: number | null
@@ -60,11 +68,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '设计内容格式不正确' }, { status: 400 })
     }
 
-    const name = (body.name || '').trim() || '未命名作品'
-
     const data = {
-      userId: payload.sub,
-      name,
+      userId,
       totalPrice: body.totalPrice,
       totalWeight: body.totalWeight ?? null,
       averageDiameter: body.averageDiameter ?? null,
@@ -76,7 +81,7 @@ export async function POST(req: NextRequest) {
     let design
     if (body.id) {
       design = await prisma.braceletDesign.update({
-        where: { id: body.id, userId: payload.sub },
+        where: { id: body.id, userId },
         data,
       })
     } else {
