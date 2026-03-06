@@ -5,6 +5,16 @@ import { wechatLogin } from '@/lib/wechat'
 
 const SESSION_DAYS = 7
 
+function formatBirthday(d: Date): string {
+  const date = new Date(d)
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+}
+
+function maskPhone(phone: string): string {
+  if (phone.length < 11) return phone
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
@@ -38,46 +48,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errno: 400, errmsg: '获取 openId 失败', data: null }, { status: 400 })
     }
 
-    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || ''
-
-    // 2. 根据 openid 查找用户是否已经注册
-    // 兼容：如果历史逻辑曾用 wechat_${openid}@wechat.local 创建过用户，但没有写入 weixin_openid，
-    // 则需要通过 email 回填 weixin_openid，避免 email 唯一约束冲突。
     const openId = wechatUserInfo.openId
-    const wechatEmail = `wechat_${openId}@wechat.local`
-    
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [{ weixin_openid: openId }, { email: wechatEmail }],
-      },
+
+    // 2. 根据 weixin_openid 查找用户
+    let user = await prisma.user.findUnique({
+      where: { weixin_openid: openId },
     })
 
-    const now = Math.floor(Date.now() / 1000)
-    const nowAt = new Date()
-    
     if (!user) {
       try {
-      user = await prisma.user.create({
-        data: {
-          email: wechatEmail,
-            password: '', // 微信登录不需要密码
-            name: `微信用户${Math.random().toString(36).substring(2, 8)}`,
+        user = await prisma.user.create({
+          data: {
             weixin_openid: openId,
             avatar: wechatUserInfo.avatarUrl || '',
             gender: wechatUserInfo.gender || 0,
             nickname: wechatUserInfo.nickName,
-            register_ip: clientIp,
-            last_login_time: nowAt,
-            last_login_ip: clientIp,
-        },
-      })
-      } catch (e: any) {
-        // 并发/历史数据导致 email 唯一约束冲突：回查并继续走更新逻辑
-        if (e?.code === 'P2002') {
-          user = await prisma.user.findUnique({ where: { email: wechatEmail } })
-    } else {
-          throw e
+          },
+        })
+      } catch (e: unknown) {
+        // 并发创建导致唯一约束冲突：重新查询
+        if (typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002') {
+          user = await prisma.user.findUnique({ where: { weixin_openid: openId } })
         }
+        if (!user) throw e
+      }
+    }
+    if (user) {
+      // 若存在用户：不要覆盖用户手动编辑过的资料
+      // 仅在本地字段为空时，用微信信息补全
+      const patch: { avatar?: string; gender?: number; nickname?: string } = {}
+
+      if (!user.avatar && wechatUserInfo.avatarUrl) patch.avatar = wechatUserInfo.avatarUrl
+      if ((user.gender === null || user.gender === undefined) && typeof wechatUserInfo.gender === 'number') {
+        patch.gender = wechatUserInfo.gender
+      }
+      if (!user.nickname && wechatUserInfo.nickName) patch.nickname = wechatUserInfo.nickName
+
+      if (Object.keys(patch).length > 0) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: patch,
+        })
       }
     }
 
@@ -85,49 +96,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errno: 500, errmsg: '用户创建/查询失败', data: null }, { status: 500 })
     }
 
-    // 若存在用户但未绑定 weixin_openid，则回填；同时更新头像/昵称等信息
-    if (!user.weixin_openid || user.weixin_openid !== openId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          weixin_openid: openId,
-          avatar: wechatUserInfo.avatarUrl || user.avatar || '',
-          gender: wechatUserInfo.gender || user.gender || 0,
-          nickname: wechatUserInfo.nickName || user.nickname || '',
-        },
-      })
-    }
-
     // 3. 查询用户信息
     const newUserInfo = await prisma.user.findUnique({
-          where: { id: user.id },
+      where: { id: user.id },
       select: {
         id: true,
-        name: true,
         nickname: true,
         gender: true,
         avatar: true,
+        birthday: true,
+        signature: true,
+        phone: true,
+        phone_verified: true,
       },
-        })
+    })
 
     if (!newUserInfo) {
       return NextResponse.json({ errno: 500, errmsg: '用户信息查询失败', data: null }, { status: 500 })
     }
 
-    // 4. 更新登录信息
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        last_login_time: nowAt,
-        last_login_ip: clientIp,
-      },
-    })
+    const now = Math.floor(Date.now() / 1000)
 
-    // 5. 生成 token（使用 JWT 包含 user_id）
+    // 4. 生成 token（使用 JWT 包含 user_id）
     const token = signSession({
       user_id: user.id,
       sub: user.id,
-      email: user.email,
       iat: now,
       exp: now + SESSION_DAYS * 24 * 3600,
     })
@@ -136,7 +129,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errno: 500, errmsg: '生成 token 失败', data: null }, { status: 500 })
     }
 
-    // 6. 返回结果
+    // 5. 返回结果
     const res = NextResponse.json(
       {
         errno: 0,
@@ -145,10 +138,13 @@ export async function POST(req: NextRequest) {
           token,
           userInfo: {
             id: newUserInfo.id,
-            username: newUserInfo.name || '',
-            nickname: newUserInfo.nickname || newUserInfo.name || '',
+            nickname: newUserInfo.nickname || '微信用户',
             gender: newUserInfo.gender || 0,
             avatar: newUserInfo.avatar || '',
+            birthday: newUserInfo.birthday ? formatBirthday(newUserInfo.birthday) : '',
+            signature: newUserInfo.signature || '',
+            phone: newUserInfo.phone_verified && newUserInfo.phone ? maskPhone(newUserInfo.phone) : (newUserInfo.phone || ''),
+            phone_verified: newUserInfo.phone_verified,
           },
         },
       },

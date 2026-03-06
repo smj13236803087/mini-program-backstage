@@ -52,7 +52,6 @@ function base64UrlDecodeToBuffer(s: string) {
 
 export type SessionPayload = {
   sub: string
-  email: string
   user_id?: string
   iat: number
   exp: number
@@ -93,7 +92,7 @@ export function verifySession(token: string): SessionPayload | null {
   const payloadJson = base64UrlDecodeToBuffer(payloadPart).toString('utf8')
   const payload = JSON.parse(payloadJson) as SessionPayload
   // 支持 user_id 或 sub
-  if ((!payload?.sub && !payload?.user_id) || !payload?.email || !payload?.exp) return null
+  if ((!payload?.sub && !payload?.user_id) || !payload?.exp) return null
   if (Date.now() / 1000 > payload.exp) return null
   return payload
 }

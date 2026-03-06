@@ -164,3 +164,62 @@ export async function wechatLogin(
     };
   }
 }
+
+/** 缓存 access_token，避免频繁请求 */
+let cachedAccessToken: { token: string; expiresAt: number } | null = null
+
+/**
+ * 获取小程序 access_token（用于调用 getuserphonenumber 等接口）
+ */
+export async function getAccessToken(): Promise<string> {
+  if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAt - 60000) {
+    return cachedAccessToken.token
+  }
+
+  if (!WECHAT_APPID || !WECHAT_SECRET) {
+    throw new Error('微信配置未设置')
+  }
+
+  const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}`
+  const res = await fetch(url)
+  const data = await res.json()
+
+  if (data.errcode) {
+    throw new Error(`获取 access_token 失败: ${data.errcode} - ${data.errmsg || ''}`)
+  }
+
+  const token = data.access_token as string
+  const expiresIn = (data.expires_in || 7200) * 1000
+  cachedAccessToken = { token, expiresAt: Date.now() + expiresIn }
+  return token
+}
+
+/**
+ * 通过 getPhoneNumber 返回的 code 获取用户手机号
+ * 需要小程序已认证且开通手机号能力
+ */
+export async function getPhoneNumber(code: string): Promise<{ phoneNumber: string; purePhoneNumber: string; countryCode: string }> {
+  const accessToken = await getAccessToken()
+  const url = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  const data = await res.json()
+
+  if (data.errcode && data.errcode !== 0) {
+    throw new Error(data.errmsg || `获取手机号失败: ${data.errcode}`)
+  }
+
+  const info = data.phone_info
+  if (!info || !info.phoneNumber) {
+    throw new Error('未获取到手机号')
+  }
+
+  return {
+    phoneNumber: info.phoneNumber,
+    purePhoneNumber: info.purePhoneNumber || info.phoneNumber,
+    countryCode: info.countryCode || '86',
+  }
+}

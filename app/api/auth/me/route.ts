@@ -3,14 +3,36 @@ import { cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
 import { verifySession } from '@/lib/security'
 
+function formatBirthday(d: Date): string {
+  const date = new Date(d)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${y}/${m}/${day}`
+}
+
+function maskPhone(phone: string): string {
+  if (phone.length < 11) return phone
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
+function parseBirthday(s: string): Date | undefined {
+  const m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
+  if (!m) return undefined
+  const [, y, mo, d] = m
+  const date = new Date(parseInt(y!, 10), parseInt(mo!, 10) - 1, parseInt(d!, 10))
+  if (isNaN(date.getTime())) return undefined
+  return date
+}
+
 export async function GET(req: NextRequest) {
   let token = req.headers.get('x-equilune-token') || null
-  
+
   if (!token) {
     const authHeader = req.headers.get('authorization')
     token = authHeader?.replace('Bearer ', '') || null
   }
-  
+
   if (!token) {
     token = cookies().get('session')?.value || null
   }
@@ -39,31 +61,25 @@ export async function GET(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, nickname: true, avatar: true, gender: true, last_login_time: true },
+    select: { id: true, nickname: true, avatar: true, gender: true, birthday: true, signature: true, phone: true, phone_verified: true },
   })
 
   if (!user) {
     return NextResponse.json({ errno: 404, errmsg: '用户不存在', data: null }, { status: 200 })
   }
 
-  const lastLoginText = (() => {
-    if (!user.last_login_time) return ''
-    // 明确输出：YYYY-MM-DD HH:mm:ss（上海时区）
-    const sh = new Date(new Date(user.last_login_time).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${sh.getFullYear()}-${pad(sh.getMonth() + 1)}-${pad(sh.getDate())} ${pad(sh.getHours())}:${pad(sh.getMinutes())}:${pad(sh.getSeconds())}`
-  })()
-
   return NextResponse.json({
     errno: 0,
     errmsg: '',
     data: {
       id: user.id,
-      username: user.name || '',
-      nickname: user.nickname || user.name || '',
+      nickname: user.nickname || '微信用户',
       gender: user.gender || 0,
       avatar: user.avatar || '',
-      lastLoginTime: lastLoginText,
+      birthday: user.birthday ? formatBirthday(user.birthday) : '',
+      signature: user.signature || '',
+      phone: user.phone_verified && user.phone ? maskPhone(user.phone) : (user.phone || ''),
+      phone_verified: user.phone_verified,
     },
   }, { status: 200 })
 }
@@ -105,6 +121,9 @@ export async function PUT(req: NextRequest) {
     nickname?: unknown
     gender?: unknown
     avatar?: unknown
+    birthday?: unknown
+    signature?: unknown
+    phone?: unknown
   }
 
   if (!body) {
@@ -114,6 +133,10 @@ export async function PUT(req: NextRequest) {
   const nickname = typeof body.nickname === 'string' ? body.nickname.trim() : undefined
   const avatar = typeof body.avatar === 'string' ? body.avatar.trim() : undefined
   const gender = typeof body.gender === 'number' ? body.gender : undefined
+  const signature = typeof body.signature === 'string' ? body.signature.trim() : undefined
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : undefined
+  const birthdayStr = typeof body.birthday === 'string' ? body.birthday.trim() : undefined
+  const birthday = birthdayStr ? parseBirthday(birthdayStr) : undefined
 
   if (nickname !== undefined) {
     if (nickname.length === 0) {
@@ -132,34 +155,39 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ errno: 400, errmsg: '性别参数不合法', data: null }, { status: 200 })
   }
 
+  if (signature !== undefined && signature.length > 100) {
+    return NextResponse.json({ errno: 400, errmsg: '个性签名最多 100 个字符', data: null }, { status: 200 })
+  }
+
+  if (phone !== undefined && phone.length > 20) {
+    return NextResponse.json({ errno: 400, errmsg: '手机号格式不正确', data: null }, { status: 200 })
+  }
+
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       ...(nickname !== undefined ? { nickname } : {}),
       ...(avatar !== undefined ? { avatar } : {}),
       ...(gender !== undefined ? { gender } : {}),
+      ...(birthday !== undefined ? { birthday } : {}),
+      ...(signature !== undefined ? { signature } : {}),
+      ...(phone !== undefined ? { phone } : {}),
     },
-    select: { id: true, name: true, nickname: true, avatar: true, gender: true, last_login_time: true },
+    select: { id: true, nickname: true, avatar: true, gender: true, birthday: true, signature: true, phone: true, phone_verified: true },
   })
-
-  const lastLoginText = (() => {
-    if (!updated.last_login_time) return ''
-    const sh = new Date(new Date(updated.last_login_time).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${sh.getFullYear()}-${pad(sh.getMonth() + 1)}-${pad(sh.getDate())} ${pad(sh.getHours())}:${pad(sh.getMinutes())}:${pad(sh.getSeconds())}`
-  })()
 
   return NextResponse.json({
     errno: 0,
     errmsg: '',
     data: {
       id: updated.id,
-      username: updated.name || '',
-      nickname: updated.nickname || updated.name || '',
+      nickname: updated.nickname || '微信用户',
       gender: updated.gender || 0,
       avatar: updated.avatar || '',
-      lastLoginTime: lastLoginText,
+      birthday: updated.birthday ? formatBirthday(updated.birthday) : '',
+      signature: updated.signature || '',
+      phone: updated.phone_verified && updated.phone ? maskPhone(updated.phone) : (updated.phone || ''),
+      phone_verified: updated.phone_verified,
     },
   }, { status: 200 })
 }
-
