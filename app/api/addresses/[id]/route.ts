@@ -3,16 +3,17 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/security'
 
-// 更新地址
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+function getTokenFromReq(req: NextRequest): string | null {
+  const h = req.headers.get('x-equilune-token')
+  if (h) return h
+  const auth = req.headers.get('authorization')
+  if (auth) return auth.replace('Bearer ', '')
+  return cookies().get('session')?.value || null
+}
 
+function getUserIdFromReq(req: NextRequest): string | null {
+  const token = getTokenFromReq(req)
+  if (!token) return null
   const payload = (() => {
     try {
       return verifySession(token)
@@ -20,10 +21,17 @@ export async function PUT(
       return null
     }
   })()
+  if (!payload) return null
+  return payload.user_id || payload.sub || null
+}
 
-  if (!payload) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+// 更新地址
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const userId = getUserIdFromReq(req)
+  if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   try {
     const body = (await req.json()) as {
@@ -41,7 +49,7 @@ export async function PUT(
 
     // 验证地址是否属于当前用户
     const existingAddress = await prisma.address.findFirst({
-      where: { id: params.id, userId: payload.sub },
+      where: { id: params.id, userId },
     })
 
     if (!existingAddress) {
@@ -71,18 +79,18 @@ export async function PUT(
     if (body.isDefault !== undefined) {
       if (body.isDefault) {
         await prisma.user.update({
-          where: { id: payload.sub },
+          where: { id: userId },
           data: { defaultAddressId: address.id },
         })
       } else {
         // 如果取消默认，检查是否是当前默认地址
         const user = await prisma.user.findUnique({
-          where: { id: payload.sub },
+          where: { id: userId },
           select: { defaultAddressId: true },
         })
         if (user?.defaultAddressId === address.id) {
           await prisma.user.update({
-            where: { id: payload.sub },
+            where: { id: userId },
             data: { defaultAddressId: null },
           })
         }
@@ -91,7 +99,7 @@ export async function PUT(
 
     // 获取更新后的默认地址状态
     const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: userId },
       select: { defaultAddressId: true },
     })
 
@@ -113,27 +121,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
-
-  const payload = (() => {
-    try {
-      return verifySession(token)
-    } catch {
-      return null
-    }
-  })()
-
-  if (!payload) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+  const userId = getUserIdFromReq(req)
+  if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   try {
     // 验证地址是否属于当前用户
     const existingAddress = await prisma.address.findFirst({
-      where: { id: params.id, userId: payload.sub },
+      where: { id: params.id, userId },
     })
 
     if (!existingAddress) {
@@ -142,13 +136,13 @@ export async function DELETE(
 
     // 检查是否是默认地址，如果是，先清除用户的默认地址引用
     const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: userId },
       select: { defaultAddressId: true },
     })
 
     if (user?.defaultAddressId === params.id) {
       await prisma.user.update({
-        where: { id: payload.sub },
+        where: { id: userId },
         data: { defaultAddressId: null },
       })
     }

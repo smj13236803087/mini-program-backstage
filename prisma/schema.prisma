@@ -10,14 +10,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// 小程序 / 后台商品表（取代 Shopify 商品作为小程序商品来源）
 model Product {
   id String @id @default(cuid())
 
-  /// 商品名称（原 Shopify 的 title）
+  /// 商品名称
   title String
 
-  /// 商品类型，对应 Shopify 的 product_type（用于 categorizeProducts）
+  /// 商品类型
   productType String
 
   /// 主图地址
@@ -28,6 +27,12 @@ model Product {
 
   /// 基础单价（元），对应 variants[0].price
   price Decimal @db.Decimal(10, 2)
+
+  /// 真实库存（单位：件）
+  stock Int @default(0)
+
+  /// 能量标签（用于 AI 匹配），如 ["情绪","智慧"]
+  energy_tags Json?
 
   /// 直径选项，例如 "8mm"（用于 options: name=diameter）
   diameter String?
@@ -62,6 +67,9 @@ model User {
 
   // 关联：用户的购物车
   carts Cart[]
+
+  // 关联：用户的订单
+  orders Order[]
 
   @@map("users")
 }
@@ -162,3 +170,96 @@ model CartItem {
 
   @@index([cartId])
 }
+
+/// 订单主表
+model Order {
+  id String @id @default(cuid())
+
+  /// 下单用户
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  /// 订单状态：pending / to_pay / to_ship / to_receive / done / cancelled / refund
+  status String @default("pending")
+
+  /// 订单商品总金额（含运费前）
+  totalAmount Decimal @db.Decimal(10, 2)
+
+  /// 实际支付金额（可含运费/优惠后）
+  payAmount Decimal @db.Decimal(10, 2)
+
+  /// 运费金额
+  freightAmount Decimal @db.Decimal(10, 2) @default(0.0)
+
+  /// 用户备注
+  remark String?
+
+  /// 收件人快照（下单时写死，避免地址后改动）
+  recipient String
+  phone     String
+  country   String  @default("中国")
+  province  String
+  city      String
+  district  String
+  detail    String
+  postalCode String?
+
+  /// 关联的设计/商品（可选）
+  designSnapshot Json?
+
+  /// 支付相关
+  outTradeNo  String? @unique
+  payStatus   String  @default("unpaid") // unpaid / paid / refunded
+  payChannel  String? // wechat 等
+  paidAt      DateTime?
+
+  /// 物流相关
+  shippingCompany String?
+  trackingNo      String?
+  shippedAt       DateTime?
+  receivedAt      DateTime?
+
+  /// 退款相关
+  refundStatus String? // requested / processing / done / rejected
+  refundAmount Decimal? @db.Decimal(10, 2)
+  refundReason String?
+  refundedAt   DateTime?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("orders")
+}
+
+/// 订单明细表
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order @relation(fields: [orderId], references: [id])
+
+  /// 商品/设计标识（可选）
+  productId       String?
+  braceletDesignId String?
+
+  /// 展示名称
+  name String
+
+  /// 单价与数量
+  unitPrice Decimal @db.Decimal(10, 2)
+  quantity  Int
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  /// 设计/商品完整快照
+  snapshot Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("order_items")
+}
+

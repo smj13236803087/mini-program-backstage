@@ -3,13 +3,17 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/security'
 
-// 获取用户的所有地址
-export async function GET() {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+function getTokenFromReq(req: NextRequest): string | null {
+  const h = req.headers.get('x-equilune-token')
+  if (h) return h
+  const auth = req.headers.get('authorization')
+  if (auth) return auth.replace('Bearer ', '')
+  return cookies().get('session')?.value || null
+}
 
+function getUserIdFromReq(req: NextRequest): string | null {
+  const token = getTokenFromReq(req)
+  if (!token) return null
   const payload = (() => {
     try {
       return verifySession(token)
@@ -17,18 +21,22 @@ export async function GET() {
       return null
     }
   })()
+  if (!payload) return null
+  return payload.user_id || payload.sub || null
+}
 
-  if (!payload) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+// 获取用户的所有地址
+export async function GET(req: NextRequest) {
+  const userId = getUserIdFromReq(req)
+  if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
+    where: { id: userId },
     select: { defaultAddressId: true },
   })
 
   const addresses = await prisma.address.findMany({
-    where: { userId: payload.sub },
+    where: { userId },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -43,22 +51,8 @@ export async function GET() {
 
 // 创建新地址
 export async function POST(req: NextRequest) {
-  const token = cookies().get('session')?.value
-  if (!token) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
-
-  const payload = (() => {
-    try {
-      return verifySession(token)
-    } catch {
-      return null
-    }
-  })()
-
-  if (!payload) {
-    return NextResponse.json({ error: '未登录' }, { status: 401 })
-  }
+  const userId = getUserIdFromReq(req)
+  if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   try {
     const body = (await req.json()) as {
@@ -91,7 +85,7 @@ export async function POST(req: NextRequest) {
     // 创建地址
     const address = await prisma.address.create({
       data: {
-        userId: payload.sub,
+        userId,
         recipient: body.recipient.trim(),
         phone: body.phone.trim(),
         country: body.country?.trim() || '中国',
@@ -107,7 +101,7 @@ export async function POST(req: NextRequest) {
     // 如果设置为默认地址，更新用户的默认地址
     if (body.isDefault) {
       await prisma.user.update({
-        where: { id: payload.sub },
+        where: { id: userId },
         data: { defaultAddressId: address.id },
       })
     }
