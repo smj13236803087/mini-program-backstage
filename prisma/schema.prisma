@@ -46,7 +46,17 @@ model Product {
 
 model User {
   id             String    @id @default(cuid())
-  weixin_openid  String?   @unique // 微信 openid
+  weixin_openid  String?   @unique // 微信 openid（小程序用户）
+
+  /// 后台邮箱登录账号（可选）
+  email          String?   @unique
+
+  /// 后台登录密码（PBKDF2 哈希）
+  password       String?
+
+  /// 是否为后台管理员账号
+  isAdmin        Boolean   @default(false)
+
   avatar         String? // 头像
   gender         Int? // 性别 0：未知、1：男、2：女
   nickname       String? // 昵称
