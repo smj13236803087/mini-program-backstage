@@ -48,7 +48,7 @@ export default function LoginPage() {
           <Card className={styles.card}>
             <div className={styles.logoContainer}>
               <Image
-                src="/logo-rect.webp"
+                src="/OIP.png"
                 alt="Logo"
                 width={84}
                 height={84}
@@ -59,7 +59,7 @@ export default function LoginPage() {
             </div>
             <div className={styles.welcomeText}>
               <p>
-                欢迎登录 <span>后台管理系统</span>
+                欢迎登录 <span>衡月手串后台管理系统</span>
               </p>
             </div>
             <Form name="login" onFinish={onFinish} className={styles.form}>

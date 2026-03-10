@@ -52,9 +52,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const existingUser = await prisma.user.findFirst({
-    where: { email },
-  })
+  const existingUser = (await prisma.user.findFirst({
+    where: { email } as any,
+  } as any)) as any
 
   if (existingUser) {
     // 已经是正式账号，直接登录
@@ -91,22 +91,22 @@ export async function POST(req: NextRequest) {
     return res
   }
 
-  const user = await prisma.$transaction(async (tx) => {
+  const user = (await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
         email: pending.email,
         password: pending.password,
         isAdmin: true,
         nickname: pending.name,
-      },
-    })
+      } as any,
+    } as any)
 
     await tx.pendingUser.delete({
       where: { email: pending.email },
     })
 
     return created
-  })
+  })) as any
 
   const nowSec = Math.floor(Date.now() / 1000)
   const exp = nowSec + 60 * 60 * 24 * 7

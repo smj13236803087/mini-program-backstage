@@ -99,7 +99,7 @@ export default function DashboardLayout({
           }}
         >
           <Image
-            src="/logo-rect.webp"
+            src="/OIP.png"
             alt="Logo"
             width={32}
             height={32}
@@ -108,12 +108,12 @@ export default function DashboardLayout({
           {!collapsed && (
             <span
               style={{
-                fontSize: 20,
+                fontSize: 18,
                 color: 'white',
                 fontWeight: 600,
               }}
             >
-              后台管理
+              衡月手串后台
             </span>
           )}
         </div>
@@ -145,7 +145,7 @@ export default function DashboardLayout({
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 500 }}>运营后台控制台</div>
+          <div style={{ fontSize: 16, fontWeight: 500 }}>衡月手串后台管理系统</div>
           <Dropdown menu={{ items: menuItems }} placement="bottomRight">
             <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
               <span>{user.nickname}</span>

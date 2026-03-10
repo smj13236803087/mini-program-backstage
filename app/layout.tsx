@@ -4,7 +4,12 @@ import type { ReactNode } from 'react'
 import AntdRegistry from '@/lib/AntdRegistry'
 
 export const metadata: Metadata = {
-  title: '后台管理系统',
+  title: '衡月手串后台管理系统',
+  icons: {
+    icon: '/OIP.png',
+    shortcut: '/OIP.png',
+    apple: '/OIP.png',
+  },
 }
 
 export default function RootLayout({

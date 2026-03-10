@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const user = await prisma.user.findFirst({
+  const user = (await prisma.user.findFirst({
     where: {
       email,
       isAdmin: true,
-    },
-  })
+    } as any,
+  } as any)) as any
 
   if (!user || !user.password) {
     return NextResponse.json(
