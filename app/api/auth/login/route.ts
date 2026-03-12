@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const user = (await prisma.user.findFirst({
     where: {
       email,
-      isAdmin: true,
+      role: { in: ['SUPER_ADMIN', 'ADMIN'] },
     } as any,
   } as any)) as any
 

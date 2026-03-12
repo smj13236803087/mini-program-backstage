@@ -42,7 +42,6 @@ export async function PUT(
       city?: string
       district?: string
       detail?: string
-      postalCode?: string
       tag?: string
       isDefault?: boolean
     }
@@ -65,8 +64,6 @@ export async function PUT(
     if (body.city !== undefined) updateData.city = body.city.trim()
     if (body.district !== undefined) updateData.district = body.district.trim()
     if (body.detail !== undefined) updateData.detail = body.detail.trim()
-    if (body.postalCode !== undefined)
-      updateData.postalCode = body.postalCode?.trim() || null
     if (body.tag !== undefined) updateData.tag = body.tag?.trim() || null
 
     // 更新地址

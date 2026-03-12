@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
       city: string
       district: string
       detail: string
-      postalCode?: string
       tag?: string
       isDefault?: boolean
     }
@@ -93,7 +92,6 @@ export async function POST(req: NextRequest) {
         city: body.city.trim(),
         district: body.district.trim(),
         detail: body.detail.trim(),
-        postalCode: body.postalCode?.trim() || null,
         tag: body.tag?.trim() || null,
       },
     })

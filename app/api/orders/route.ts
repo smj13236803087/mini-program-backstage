@@ -68,7 +68,6 @@ export async function POST(req: NextRequest) {
           city?: string
           district?: string
           detail?: string
-          postalCode?: string
         }
       }
 
@@ -93,7 +92,6 @@ export async function POST(req: NextRequest) {
         city: string
         district: string
         detail: string
-        postalCode: string | null
       } = null
 
   if (body.addressId) {
@@ -109,7 +107,6 @@ export async function POST(req: NextRequest) {
       city: a.city,
       district: a.district,
       detail: a.detail,
-      postalCode: a.postalCode || null,
     }
   } else {
     const a = body.address || (null as any)
@@ -130,7 +127,6 @@ export async function POST(req: NextRequest) {
       city,
       district,
       detail,
-      postalCode: typeof a?.postalCode === 'string' && a.postalCode.trim() ? a.postalCode.trim() : null,
     }
   }
 
@@ -153,7 +149,7 @@ export async function POST(req: NextRequest) {
         city: addr!.city,
         district: addr!.district,
         detail: addr!.detail,
-        postalCode: addr!.postalCode,
+        postalCode: null,
         designSnapshot: draft ? draft : undefined,
         outTradeNo,
         payStatus: 'unpaid',

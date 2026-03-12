@@ -60,11 +60,12 @@ export async function POST(req: NextRequest) {
         user = await prisma.user.create({
           data: {
             weixin_openid: openId,
+            role: 'USER',
             avatar: wechatUserInfo.avatarUrl || '',
             gender: wechatUserInfo.gender || 0,
             nickname: wechatUserInfo.nickName,
-          },
-        })
+          } as any,
+        } as any)
       } catch (e: unknown) {
         // 并发创建导致唯一约束冲突：重新查询
         if (typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002') {

@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       data: {
         email: pending.email,
         password: pending.password,
-        isAdmin: true,
+        role: 'SUPER_ADMIN',
         nickname: pending.name,
       } as any,
     } as any)
