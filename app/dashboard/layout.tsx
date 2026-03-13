@@ -7,6 +7,7 @@ import {
   ShoppingCartOutlined,
   LogoutOutlined,
   UserOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -73,6 +74,7 @@ export default function DashboardLayout({
   const selectedKey = (() => {
     if (!pathname) return 'dashboard'
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
+    if (pathname.startsWith('/dashboard/designs')) return 'designs'
     return 'dashboard'
   })()
 
@@ -131,6 +133,11 @@ export default function DashboardLayout({
               key: 'orders',
               icon: <ShoppingCartOutlined />,
               label: <Link href="/dashboard/orders">订单管理</Link>,
+            },
+            {
+              key: 'designs',
+              icon: <AppstoreOutlined />,
+              label: <Link href="/dashboard/designs">作品集管理</Link>,
             },
           ]}
         />
