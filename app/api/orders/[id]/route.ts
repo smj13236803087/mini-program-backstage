@@ -25,7 +25,7 @@ function getUserIdFromReq(req: NextRequest): string | null {
   return payload.user_id || payload.sub || null
 }
 
-export async function POST(
+export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -36,24 +36,17 @@ export async function POST(
 
   const order = await prisma.order.findFirst({
     where: { id, userId },
-    select: { id: true, payStatus: true, status: true },
-  })
-  if (!order) return NextResponse.json({ error: '订单不存在' }, { status: 404 })
-
-  if (order.payStatus === 'paid') {
-    return NextResponse.json({ ok: true, orderId: id }, { status: 200 })
-  }
-
-  const updated = await prisma.order.update({
-    where: { id },
-    data: {
-      payStatus: 'paid',
-      paidAt: new Date(),
-      // 用户支付完成后，进入“制作中”阶段
-      status: 'making',
+    include: {
+      items: {
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
 
-  return NextResponse.json({ ok: true, order: updated }, { status: 200 })
+  if (!order) {
+    return NextResponse.json({ error: '订单不存在' }, { status: 404 })
+  }
+
+  return NextResponse.json({ order }, { status: 200 })
 }
 

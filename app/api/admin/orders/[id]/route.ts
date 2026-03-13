@@ -5,6 +5,11 @@ import { assertAdmin } from '@/lib/admin-auth'
 const ALLOWED_STATUS = new Set([
   'pending',
   'to_pay',
+  // 定制中阶段
+  'making', // 制作中
+  'inspect', // 实物检视
+  'ready', // 结缘发出（待发货）
+  // 配送 / 完成 / 其他
   'to_ship',
   'to_receive',
   'done',
@@ -89,7 +94,8 @@ export async function PATCH(
     data.payStatus = body.payStatus
     if (body.payStatus === 'paid') {
       data.paidAt = new Date()
-      if (!nextStatus) data.status = 'to_ship'
+      // 默认进入「制作中」阶段，后续由后台/小程序推进
+      if (!nextStatus) data.status = 'making'
     }
     if (body.payStatus === 'refunded') {
       if (!nextStatus) data.status = 'refund'

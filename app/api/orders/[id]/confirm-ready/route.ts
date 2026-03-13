@@ -25,6 +25,7 @@ function getUserIdFromReq(req: NextRequest): string | null {
   return payload.user_id || payload.sub || null
 }
 
+// 小程序端「确认实物并发出」：将状态从 inspect -> ready（结缘发出）
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
@@ -33,25 +34,19 @@ export async function POST(
   if (!userId) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   const { id } = await ctx.params
-
   const order = await prisma.order.findFirst({
     where: { id, userId },
-    select: { id: true, payStatus: true, status: true },
+    select: { id: true, status: true },
   })
   if (!order) return NextResponse.json({ error: '订单不存在' }, { status: 404 })
 
-  if (order.payStatus === 'paid') {
-    return NextResponse.json({ ok: true, orderId: id }, { status: 200 })
+  if (order.status !== 'inspect') {
+    return NextResponse.json({ error: '当前状态不可确认实物', status: order.status }, { status: 400 })
   }
 
   const updated = await prisma.order.update({
     where: { id },
-    data: {
-      payStatus: 'paid',
-      paidAt: new Date(),
-      // 用户支付完成后，进入“制作中”阶段
-      status: 'making',
-    },
+    data: { status: 'ready' },
   })
 
   return NextResponse.json({ ok: true, order: updated }, { status: 200 })

@@ -27,6 +27,12 @@ type OrderRow = {
 
 function statusLabel(s: string) {
   switch (s) {
+    case 'making':
+      return '制作中'
+    case 'inspect':
+      return '实物检视'
+    case 'ready':
+      return '结缘发出'
     case 'to_ship':
       return '待发货'
     case 'to_receive':
@@ -48,6 +54,12 @@ function statusLabel(s: string) {
 
 function statusPillClass(s: string) {
   switch (s) {
+    case 'making':
+      return 'bg-violet-100 text-violet-800'
+    case 'inspect':
+      return 'bg-blue-100 text-blue-800'
+    case 'ready':
+      return 'bg-emerald-100 text-emerald-800'
     case 'to_ship':
       return 'bg-amber-100 text-amber-800'
     case 'to_receive':
@@ -334,11 +346,41 @@ export default function DashboardOrdersPage() {
                           className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
                           disabled={loading}
                           type="button"
-                          onClick={() => patchOrder(o.id, { payStatus: 'paid' }, '已模拟支付')}
-                          title="模拟支付成功（置为待发货）"
+                          onClick={() => patchOrder(o.id, { payStatus: 'paid' }, '已模拟支付（制作中）')}
+                          title="模拟支付成功（置为制作中）"
                         >
                           <CreditCard className="h-4 w-4" />
                           模拟支付
+                        </button>
+
+                        <button
+                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                          disabled={loading}
+                          type="button"
+                          onClick={() => patchOrder(o.id, { status: 'making' }, '已标记为制作中')}
+                          title="标记为制作中"
+                        >
+                          制作中
+                        </button>
+
+                        <button
+                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                          disabled={loading}
+                          type="button"
+                          onClick={() => patchOrder(o.id, { status: 'inspect' }, '已标记为实物检视')}
+                          title="标记为实物检视"
+                        >
+                          实物检视
+                        </button>
+
+                        <button
+                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                          disabled={loading}
+                          type="button"
+                          onClick={() => patchOrder(o.id, { status: 'ready' }, '已标记为结缘发出')}
+                          title="标记为结缘发出"
+                        >
+                          结缘发出
                         </button>
 
                         <button
