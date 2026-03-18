@@ -1,7 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Search, RefreshCw, Truck, BadgeCheck, BadgeX, CreditCard, Trash2 } from 'lucide-react'
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  CreditCardOutlined,
+  DeleteOutlined,
+  DeliveredProcedureOutlined,
+  EyeOutlined,
+  GiftOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  ToolOutlined,
+} from '@ant-design/icons'
+import { Button, Input, Select, Space, Table, Tag, Typography } from 'antd'
 
 type OrderRow = {
   id: string
@@ -21,6 +35,7 @@ type OrderRow = {
   refundStatus: string | null
   refundAmount: any | null
   createdAt: string
+  updatedAt: string
   user: { id: string; nickname: string | null; phone: string | null } | null
   items: { id: string; name: string; quantity: number; subtotal: any }[]
 }
@@ -52,31 +67,6 @@ function statusLabel(s: string) {
   }
 }
 
-function statusPillClass(s: string) {
-  switch (s) {
-    case 'making':
-      return 'bg-violet-100 text-violet-800'
-    case 'inspect':
-      return 'bg-blue-100 text-blue-800'
-    case 'ready':
-      return 'bg-emerald-100 text-emerald-800'
-    case 'to_ship':
-      return 'bg-amber-100 text-amber-800'
-    case 'to_receive':
-      return 'bg-blue-100 text-blue-800'
-    case 'done':
-      return 'bg-emerald-100 text-emerald-800'
-    case 'refund':
-      return 'bg-rose-100 text-rose-800'
-    case 'to_pay':
-      return 'bg-zinc-100 text-zinc-800'
-    case 'cancelled':
-      return 'bg-zinc-200 text-zinc-700'
-    default:
-      return 'bg-zinc-100 text-zinc-800'
-  }
-}
-
 function fmtTime(iso: string | null | undefined) {
   if (!iso) return '-'
   const d = new Date(iso)
@@ -87,9 +77,22 @@ function fmtTime(iso: string | null | undefined) {
 export default function DashboardOrdersPage() {
   const [adminToken, setAdminToken] = useState('dev-admin-token')
   const [status, setStatus] = useState('all')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [newSearchType, setNewSearchType] = useState('all')
+  const [oldSearchType, setOldSearchType] = useState('all')
+  const [newSearchValue, setNewSearchValue] = useState('')
+  const [oldSearchValue, setOldSearchValue] = useState('')
+  const [hasSearch, setHasSearch] = useState(false)
+  const [isSort, setIsSort] = useState(false)
+  const [sortConfig, setSortConfig] = useState<{
+    key: string
+    order: 'asc' | 'desc' | null
+  }>({ key: '', order: null })
+
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<{ total: number; orders: OrderRow[] } | null>(
@@ -112,11 +115,26 @@ export default function DashboardOrdersPage() {
   const queryKey = useMemo(() => {
     const s = new URLSearchParams()
     if (status && status !== 'all') s.set('status', status)
-    if (q.trim()) s.set('q', q.trim())
-    s.set('page', String(page))
-    s.set('pageSize', String(pageSize))
+    const q = (hasSearch ? newSearchValue : oldSearchValue).trim()
+    const field = (hasSearch ? newSearchType : oldSearchType).trim()
+    if (q) s.set('q', q)
+    if (field && field !== 'all') s.set('field', field)
+    if (sortConfig.key && sortConfig.order) s.set('sort', `${sortConfig.key}:${sortConfig.order}`)
+    s.set('page', String(pagination.current))
+    s.set('pageSize', String(pagination.pageSize))
     return s.toString()
-  }, [status, q, page, pageSize])
+  }, [
+    status,
+    hasSearch,
+    newSearchValue,
+    oldSearchValue,
+    newSearchType,
+    oldSearchType,
+    sortConfig.key,
+    sortConfig.order,
+    pagination.current,
+    pagination.pageSize,
+  ])
 
   async function load() {
     setLoading(true)
@@ -131,7 +149,9 @@ export default function DashboardOrdersPage() {
         setData(null)
         return
       }
-      setData({ total: json.total || 0, orders: json.orders || [] })
+      const total = json.total || 0
+      setData({ total, orders: json.orders || [] })
+      setPagination((p) => ({ ...p, total }))
     } catch (e) {
       setError(`加载失败：${String(e)}`)
       setData(null)
@@ -199,297 +219,358 @@ export default function DashboardOrdersPage() {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="text-xl font-semibold text-zinc-900">订单管理</div>
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
+      }
+      return { key, order: 'desc' }
+    })
+    setIsSort(true)
+  }
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="text-sm text-zinc-700">
-            管理 Token
-            <input
-              className="ml-2 w-56 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
+  useEffect(() => {
+    if (!isSort) return
+    void load()
+    setIsSort(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSort])
+
+  const triggerSearch = () => {
+    setOldSearchValue(newSearchValue)
+    setOldSearchType(newSearchType)
+    if (hasSearch) {
+      void load()
+    } else {
+      setHasSearch(true)
+    }
+    setPagination((p) => ({ ...p, current: 1 }))
+  }
+
+  const searchOptions = [
+    { label: '全部', value: 'all' },
+    { label: '订单号', value: 'id' },
+    { label: '支付单号（outTradeNo）', value: 'outTradeNo' },
+    { label: '收件人', value: 'recipient' },
+    { label: '手机', value: 'phone' },
+    { label: '运单号', value: 'trackingNo' },
+    { label: '创建时间（输入日期）', value: 'createdAt' },
+    { label: '更新时间（输入日期）', value: 'updatedAt' },
+  ]
+
+  const columns = [
+    {
+      title: '订单号',
+      dataIndex: 'id',
+      key: 'id',
+      width: 220,
+      render: (id: string, o: OrderRow) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{id}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            {o.items?.length
+              ? `${o.items[0].name} 等 ${
+                  o.items.reduce((s, it) => s + (it.quantity || 0), 0) || 0
+                } 件`
+              : '-'}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            {o.recipient} / {o.phone}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '用户',
+      dataIndex: ['user', 'nickname'],
+      key: 'user',
+      width: 160,
+      render: (_: any, o: OrderRow) => (
+        <div>
+          <div>{o.user?.nickname || '-'}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>{o.user?.phone || o.phone || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      title: '金额',
+      key: 'amount',
+      width: 160,
+      render: (_: any, o: OrderRow) => (
+        <div>
+          <div>实付：{String(o.payAmount)}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            商品：{String(o.totalAmount)} 运费：{String(o.freightAmount)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      render: (s: string, o: OrderRow) => (
+        <div>
+          <Tag color="default">{statusLabel(s)}</Tag>
+          {o.shippingCompany || o.trackingNo ? (
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              {o.shippingCompany || '-'} {o.trackingNo || ''}
+            </div>
+          ) : null}
+          {o.refundStatus ? (
+            <div style={{ fontSize: 12, color: '#e11d48' }}>退款：{o.refundStatus}</div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      title: '支付',
+      key: 'pay',
+      width: 140,
+      render: (_: any, o: OrderRow) => (
+        <div>
+          <div>{o.payStatus}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>{fmtTime(o.paidAt)}</div>
+        </div>
+      ),
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: sortConfig.key === 'createdAt' ? 600 : 400,
+            color: sortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleSort('createdAt')}
+        >
+          创建时间
+          {sortConfig.key === 'createdAt' ? (
+            sortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 190,
+      render: (iso: string) => fmtTime(iso),
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: sortConfig.key === 'updatedAt' ? 600 : 400,
+            color: sortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleSort('updatedAt')}
+        >
+          更新时间
+          {sortConfig.key === 'updatedAt' ? (
+            sortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 190,
+      render: (iso: string) => fmtTime(iso),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      fixed: 'right' as const,
+      width: 520,
+      render: (_: any, o: OrderRow) => (
+        <Space wrap>
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() => patchOrder(o.id, { payStatus: 'paid' }, '已模拟支付（制作中）')}
+            icon={<CreditCardOutlined />}
+          >
+            模拟支付
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() => patchOrder(o.id, { status: 'making' }, '已标记为制作中')}
+            icon={<ToolOutlined />}
+          >
+            制作中
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() => patchOrder(o.id, { status: 'inspect' }, '已标记为实物检视')}
+            icon={<EyeOutlined />}
+          >
+            实物检视
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() => patchOrder(o.id, { status: 'ready' }, '已标记为结缘发出')}
+            icon={<GiftOutlined />}
+          >
+            结缘发出
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            icon={<DeliveredProcedureOutlined />}
+            onClick={() => {
+              const company = prompt('物流公司（可空）', o.shippingCompany || '') ?? ''
+              const tracking = prompt('运单号（可空）', o.trackingNo || '') ?? ''
+              void patchOrder(
+                o.id,
+                {
+                  status: 'to_receive',
+                  shippingCompany: company || null,
+                  trackingNo: tracking || null,
+                },
+                '已发货（待收货）'
+              )
+            }}
+          >
+            发货
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            onClick={() => patchOrder(o.id, { status: 'done' }, '已完成')}
+            icon={<CheckCircleOutlined />}
+          >
+            完成
+          </Button>
+          <Button
+            size="small"
+            disabled={loading}
+            danger
+            onClick={() => patchOrder(o.id, { status: 'refund', refundStatus: 'requested' }, '已标记为退款/售后')}
+            icon={<CloseCircleOutlined />}
+          >
+            退款/售后
+          </Button>
+          <Button size="small" disabled={loading} danger onClick={() => deleteOrder(o.id)} icon={<DeleteOutlined />}>
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ]
+
+  const statusOptions = [
+    { label: '全部', value: 'all' },
+    { label: '待支付', value: 'to_pay' },
+    { label: '待发货', value: 'to_ship' },
+    { label: '待收货', value: 'to_receive' },
+    { label: '已完成', value: 'done' },
+    { label: '退款/售后', value: 'refund' },
+    { label: '已取消', value: 'cancelled' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          订单管理
+        </Typography.Title>
+        <Space wrap>
+          <Space>
+            <span style={{ color: '#475569' }}>管理 Token</span>
+            <Input
+              style={{ width: 240 }}
               value={adminToken}
               onChange={(e) => {
-                setPage(1)
+                setPagination((p) => ({ ...p, current: 1 }))
                 setAdminToken(e.target.value)
               }}
               placeholder="ADMIN_TOKEN"
             />
-          </label>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-            onClick={() => load()}
-            disabled={loading}
-            type="button"
-          >
-            <RefreshCw className="h-4 w-4" />
+          </Space>
+          <Button onClick={() => load()} loading={loading} type="default" icon={<ReloadOutlined />}>
             刷新
-          </button>
-        </div>
+          </Button>
+        </Space>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 sm:flex-row sm:items-center">
-        <label className="text-sm text-zinc-700">
-          状态
-          <select
-            className="ml-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Space>
+          <span style={{ color: '#475569' }}>状态</span>
+          <Select
+            style={{ width: 160 }}
             value={status}
-            onChange={(e) => {
-              setPage(1)
-              setStatus(e.target.value)
+            options={statusOptions}
+            onChange={(v) => {
+              setPagination((p) => ({ ...p, current: 1 }))
+              setStatus(v)
             }}
-          >
-            <option value="all">全部</option>
-            <option value="to_pay">待支付</option>
-            <option value="to_ship">待发货</option>
-            <option value="to_receive">待收货</option>
-            <option value="done">已完成</option>
-            <option value="refund">退款/售后</option>
-            <option value="cancelled">已取消</option>
-          </select>
-        </label>
-
-        <label className="flex flex-1 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-within:border-zinc-400">
-          <Search className="h-4 w-4 text-zinc-500" />
-          <input
-            className="w-full outline-none"
-            value={q}
-            onChange={(e) => {
-              setPage(1)
-              setQ(e.target.value)
-            }}
-            placeholder="搜索：订单号 / outTradeNo / 收件人 / 手机 / 运单号"
           />
-        </label>
+        </Space>
 
-        <div className="text-sm text-zinc-500">
-          共 <span className="font-medium text-zinc-800">{data?.total ?? 0}</span> 条
+        <Space.Compact style={{ width: 440 }}>
+          <Select value={newSearchType} onChange={setNewSearchType} style={{ width: 150 }} options={searchOptions} />
+          <Input
+            placeholder="请输入关键词"
+            value={newSearchValue}
+            onChange={(e) => {
+              setNewSearchValue(e.target.value)
+              setHasSearch(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') triggerSearch()
+            }}
+          />
+          <Button type="primary" onClick={triggerSearch} icon={<SearchOutlined />}>
+            搜索
+          </Button>
+        </Space.Compact>
+
+        <div style={{ color: '#64748b', marginLeft: 'auto' }}>
+          共 <span style={{ fontWeight: 600, color: '#0f172a' }}>{data?.total ?? 0}</span> 条
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div style={{ border: '1px solid #fecaca', background: '#fff1f2', padding: 12, borderRadius: 8, color: '#be123c' }}>
           {error}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-              <tr>
-                <th className="whitespace-nowrap px-4 py-3">订单</th>
-                <th className="whitespace-nowrap px-4 py-3">用户</th>
-                <th className="whitespace-nowrap px-4 py-3">金额</th>
-                <th className="whitespace-nowrap px-4 py-3">状态</th>
-                <th className="whitespace-nowrap px-4 py-3">支付</th>
-                <th className="whitespace-nowrap px-4 py-3">创建时间</th>
-                <th className="whitespace-nowrap px-4 py-3">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {(data?.orders || []).map((o) => {
-                const totalQty =
-                  o.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0
-                const itemText =
-                  o.items?.length > 0 ? `${o.items[0].name} 等 ${totalQty} 件` : '-'
-
-                return (
-                  <tr key={o.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-zinc-900">{o.id}</div>
-                      <div className="mt-1 text-xs text-zinc-500">{itemText}</div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        {o.recipient} / {o.phone}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-zinc-900">{o.user?.nickname || '-'}</div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        {o.user?.phone || o.phone || '-'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-zinc-900">实付：{String(o.payAmount)}</div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        商品：{String(o.totalAmount)} 运费：{String(o.freightAmount)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${statusPillClass(
-                          o.status
-                        )}`}
-                      >
-                        {statusLabel(o.status)}
-                      </span>
-                      {o.shippingCompany || o.trackingNo ? (
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {o.shippingCompany || '-'} {o.trackingNo || ''}
-                        </div>
-                      ) : null}
-                      {o.refundStatus ? (
-                        <div className="mt-1 text-xs text-rose-600">
-                          退款：{o.refundStatus}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-zinc-900">{o.payStatus}</div>
-                      <div className="mt-1 text-xs text-zinc-500">{fmtTime(o.paidAt)}</div>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">{fmtTime(o.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => patchOrder(o.id, { payStatus: 'paid' }, '已模拟支付（制作中）')}
-                          title="模拟支付成功（置为制作中）"
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          模拟支付
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => patchOrder(o.id, { status: 'making' }, '已标记为制作中')}
-                          title="标记为制作中"
-                        >
-                          制作中
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => patchOrder(o.id, { status: 'inspect' }, '已标记为实物检视')}
-                          title="标记为实物检视"
-                        >
-                          实物检视
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => patchOrder(o.id, { status: 'ready' }, '已标记为结缘发出')}
-                          title="标记为结缘发出"
-                        >
-                          结缘发出
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => {
-                            const company =
-                              prompt('物流公司（可空）', o.shippingCompany || '') ?? ''
-                            const tracking =
-                              prompt('运单号（可空）', o.trackingNo || '') ?? ''
-                            void patchOrder(
-                              o.id,
-                              {
-                                status: 'to_receive',
-                                shippingCompany: company || null,
-                                trackingNo: tracking || null,
-                              },
-                              '已发货（待收货）'
-                            )
-                          }}
-                          title="录入物流并标记为待收货"
-                        >
-                          <Truck className="h-4 w-4" />
-                          发货
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => patchOrder(o.id, { status: 'done' }, '已完成')}
-                          title="确认收货（已完成）"
-                        >
-                          <BadgeCheck className="h-4 w-4" />
-                          完成
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() =>
-                            patchOrder(
-                              o.id,
-                              { status: 'refund', refundStatus: 'requested' },
-                              '已标记为退款/售后'
-                            )
-                          }
-                          title="标记退款/售后"
-                        >
-                          <BadgeX className="h-4 w-4" />
-                          退款/售后
-                        </button>
-
-                        <button
-                          className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                          disabled={loading}
-                          type="button"
-                          onClick={() => deleteOrder(o.id)}
-                          title="删除订单（不可恢复）"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-
-              {!loading && (data?.orders?.length || 0) === 0 ? (
-                <tr>
-                  <td
-                    className="px-4 py-10 text-center text-sm text-zinc-500"
-                    colSpan={7}
-                  >
-                    暂无订单
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 text-sm">
-          <div className="text-zinc-500">
-            第 <span className="font-medium text-zinc-800">{page}</span> 页
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={loading || page <= 1}
-              type="button"
-            >
-              上一页
-            </button>
-            <button
-              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={loading || (data?.orders?.length || 0) < pageSize}
-              type="button"
-            >
-              下一页
-            </button>
-          </div>
-        </div>
-      </div>
+      <Table
+        columns={columns as any}
+        dataSource={data?.orders || []}
+        rowKey="id"
+        loading={{ spinning: loading, tip: '加载中...' }}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showTotal: (t) => `总计 ${t} 条`,
+        }}
+        onChange={(p: any) => {
+          setPagination((prev) => ({
+            ...prev,
+            current: p.current || 1,
+            pageSize: p.pageSize || prev.pageSize,
+          }))
+        }}
+        scroll={{ x: 'max-content' }}
+      />
     </div>
   )
 }

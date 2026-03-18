@@ -9,15 +9,43 @@ export async function GET(
   const denied = assertAdmin(req)
   if (denied) return denied
 
+  const sp = req.nextUrl.searchParams
+  const q = sp.get('q')?.trim() || ''
+  const field = sp.get('field')?.trim() || ''
+  const sort = sp.get('sort')?.trim() || '' // e.g. createdAt:desc
+
   const user = await prisma.user.findUnique({
     where: { id: params.userId },
     select: { id: true, nickname: true, phone: true, weixin_openid: true },
   })
   if (!user) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
+  const where: any = { userId: params.userId }
+  if (q) {
+    if (!field || field === 'all') {
+      where.OR = [{ id: { contains: q } }]
+      const n = Number(q)
+      if (!Number.isNaN(n)) {
+        where.OR.push({ totalPrice: { equals: n } })
+      }
+    } else if (field === 'id') {
+      where.id = { contains: q }
+    }
+  }
+
+  const orderBy = (() => {
+    const [k, o] = sort.split(':')
+    const order = o === 'asc' ? 'asc' : o === 'desc' ? 'desc' : null
+    if (!order) return { createdAt: 'desc' as const }
+    if (k === 'createdAt' || k === 'updatedAt' || k === 'totalPrice') {
+      return { [k]: order } as any
+    }
+    return { createdAt: 'desc' as const }
+  })()
+
   const designs = await prisma.braceletDesign.findMany({
-    where: { userId: params.userId },
-    orderBy: { createdAt: 'desc' },
+    where,
+    orderBy,
     select: {
       id: true,
       totalPrice: true,

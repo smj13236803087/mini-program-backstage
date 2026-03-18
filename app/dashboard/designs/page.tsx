@@ -1,6 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  CheckOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from '@ant-design/icons'
+import { Button, Input, Select, Space, Table, Typography } from 'antd'
 
 type UserRow = {
   id: string
@@ -10,6 +19,7 @@ type UserRow = {
   email: string | null
   role: string
   createdAt: string
+  updatedAt: string
   _count: { braceletDesigns: number; orders: number; addresses: number }
 }
 
@@ -20,6 +30,7 @@ type DesignRow = {
   wearingStyle: string | null
   items: any
   createdAt: string
+  updatedAt: string
 }
 
 type ProductRow = {
@@ -36,7 +47,16 @@ type ProductRow = {
 
 export default function DashboardDesignsPage() {
   const [adminToken, setAdminToken] = useState('dev-admin-token')
-  const [userQ, setUserQ] = useState('')
+  const [userNewSearchType, setUserNewSearchType] = useState('all')
+  const [userOldSearchType, setUserOldSearchType] = useState('all')
+  const [userNewSearchValue, setUserNewSearchValue] = useState('')
+  const [userOldSearchValue, setUserOldSearchValue] = useState('')
+  const [userHasSearch, setUserHasSearch] = useState(false)
+  const [userIsSort, setUserIsSort] = useState(false)
+  const [userSortConfig, setUserSortConfig] = useState<{
+    key: string
+    order: 'asc' | 'desc' | null
+  }>({ key: '', order: null })
   const [users, setUsers] = useState<UserRow[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [usersErr, setUsersErr] = useState<string | null>(null)
@@ -45,6 +65,16 @@ export default function DashboardDesignsPage() {
   const [designs, setDesigns] = useState<DesignRow[]>([])
   const [designsLoading, setDesignsLoading] = useState(false)
   const [designsErr, setDesignsErr] = useState<string | null>(null)
+  const [designNewSearchType, setDesignNewSearchType] = useState('all')
+  const [designOldSearchType, setDesignOldSearchType] = useState('all')
+  const [designNewSearchValue, setDesignNewSearchValue] = useState('')
+  const [designOldSearchValue, setDesignOldSearchValue] = useState('')
+  const [designHasSearch, setDesignHasSearch] = useState(false)
+  const [designIsSort, setDesignIsSort] = useState(false)
+  const [designSortConfig, setDesignSortConfig] = useState<{
+    key: string
+    order: 'asc' | 'desc' | null
+  }>({ key: '', order: null })
 
   const [products, setProducts] = useState<ProductRow[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
@@ -75,11 +105,23 @@ export default function DashboardDesignsPage() {
 
   const userQueryKey = useMemo(() => {
     const sp = new URLSearchParams()
-    if (userQ.trim()) sp.set('q', userQ.trim())
+    const q = (userHasSearch ? userNewSearchValue : userOldSearchValue).trim()
+    const field = (userHasSearch ? userNewSearchType : userOldSearchType).trim()
+    if (q) sp.set('q', q)
+    if (field && field !== 'all') sp.set('field', field)
+    if (userSortConfig.key && userSortConfig.order) sp.set('sort', `${userSortConfig.key}:${userSortConfig.order}`)
     sp.set('page', '1')
     sp.set('pageSize', '20')
     return sp.toString()
-  }, [userQ])
+  }, [
+    userHasSearch,
+    userNewSearchValue,
+    userOldSearchValue,
+    userNewSearchType,
+    userOldSearchType,
+    userSortConfig.key,
+    userSortConfig.order,
+  ])
 
   async function loadUsers() {
     setUsersLoading(true)
@@ -135,7 +177,13 @@ export default function DashboardDesignsPage() {
     setDesignsLoading(true)
     setDesignsErr(null)
     try {
-      const res = await fetch(`/api/admin/users/${userId}/designs`, {
+      const sp = new URLSearchParams()
+      const q = (designHasSearch ? designNewSearchValue : designOldSearchValue).trim()
+      const field = (designHasSearch ? designNewSearchType : designOldSearchType).trim()
+      if (q) sp.set('q', q)
+      if (field && field !== 'all') sp.set('field', field)
+      if (designSortConfig.key && designSortConfig.order) sp.set('sort', `${designSortConfig.key}:${designSortConfig.order}`)
+      const res = await fetch(`/api/admin/users/${userId}/designs?${sp.toString()}`, {
         headers: { 'x-admin-token': adminToken },
       })
       const json = await res.json().catch(() => ({}))
@@ -159,9 +207,290 @@ export default function DashboardDesignsPage() {
   }, [adminToken, userQueryKey])
 
   useEffect(() => {
+    if (!selectedUser) return
+    void loadDesigns(selectedUser.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    designHasSearch,
+    designNewSearchValue,
+    designOldSearchValue,
+    designNewSearchType,
+    designOldSearchType,
+    designSortConfig.key,
+    designSortConfig.order,
+    selectedUser?.id,
+  ])
+
+  useEffect(() => {
     void loadProducts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminToken, productQ])
+
+  const handleUserSort = (key: string) => {
+    setUserSortConfig((prev) => {
+      if (prev.key === key) return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
+      return { key, order: 'desc' }
+    })
+    setUserIsSort(true)
+  }
+
+  useEffect(() => {
+    if (!userIsSort) return
+    void loadUsers()
+    setUserIsSort(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userIsSort])
+
+  const triggerUserSearch = () => {
+    setUserOldSearchValue(userNewSearchValue)
+    setUserOldSearchType(userNewSearchType)
+    if (userHasSearch) void loadUsers()
+    else setUserHasSearch(true)
+  }
+
+  const handleDesignSort = (key: string) => {
+    setDesignSortConfig((prev) => {
+      if (prev.key === key) return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
+      return { key, order: 'desc' }
+    })
+    setDesignIsSort(true)
+  }
+
+  useEffect(() => {
+    if (!designIsSort || !selectedUser) return
+    void loadDesigns(selectedUser.id)
+    setDesignIsSort(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designIsSort, selectedUser?.id])
+
+  const triggerDesignSearch = () => {
+    setDesignOldSearchValue(designNewSearchValue)
+    setDesignOldSearchType(designNewSearchType)
+    if (designHasSearch && selectedUser) void loadDesigns(selectedUser.id)
+    else setDesignHasSearch(true)
+  }
+
+  const userSearchOptions = [
+    { label: '全部', value: 'all' },
+    { label: '用户ID', value: 'id' },
+    { label: '昵称', value: 'nickname' },
+    { label: '手机', value: 'phone' },
+    { label: '微信 openid', value: 'weixin_openid' },
+    { label: '邮箱', value: 'email' },
+    { label: '创建时间（输入日期）', value: 'createdAt' },
+    { label: '更新时间（输入日期）', value: 'updatedAt' },
+  ]
+
+  const designSearchOptions = [
+    { label: '全部', value: 'all' },
+    { label: '作品ID', value: 'id' },
+    { label: '创建时间（输入日期）', value: 'createdAt' },
+    { label: '更新时间（输入日期）', value: 'updatedAt' },
+    { label: '价格', value: 'totalPrice' },
+  ]
+
+  const userColumns = [
+    {
+      title: '用户',
+      key: 'user',
+      width: 260,
+      render: (_: any, u: UserRow) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{u.nickname || '-'}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>{u.id}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            {u.phone || '-'} {u.weixin_openid ? `· ${u.weixin_openid}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: userSortConfig.key === 'createdAt' ? 600 : 400,
+            color: userSortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleUserSort('createdAt')}
+        >
+          创建时间
+          {userSortConfig.key === 'createdAt' ? (
+            userSortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 190,
+      render: (t: string) => new Date(t).toLocaleString(),
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: userSortConfig.key === 'updatedAt' ? 600 : 400,
+            color: userSortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleUserSort('updatedAt')}
+        >
+          更新时间
+          {userSortConfig.key === 'updatedAt' ? (
+            userSortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 190,
+      render: (t: string) => new Date(t).toLocaleString(),
+    },
+    {
+      title: '作品/订单',
+      key: 'counts',
+      width: 140,
+      render: (_: any, u: UserRow) => (
+        <span style={{ fontSize: 12, color: '#334155' }}>
+          作品 {u._count?.braceletDesigns ?? 0} · 订单 {u._count?.orders ?? 0}
+        </span>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      fixed: 'right' as const,
+      width: 90,
+      render: (_: any, u: UserRow) => (
+        <Button
+          type="primary"
+          size="small"
+          loading={usersLoading}
+          icon={<CheckOutlined />}
+          onClick={async () => {
+            setSelectedUser(u)
+            await loadDesigns(u.id)
+          }}
+        >
+          选择
+        </Button>
+      ),
+    },
+  ]
+
+  const designColumns = [
+    { title: '作品ID', dataIndex: 'id', key: 'id', width: 240, render: (id: string) => <span style={{ fontWeight: 600 }}>{id}</span> },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: designSortConfig.key === 'totalPrice' ? 600 : 400,
+            color: designSortConfig.key === 'totalPrice' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleDesignSort('totalPrice')}
+        >
+          价格
+          {designSortConfig.key === 'totalPrice' ? (
+            designSortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'totalPrice',
+      key: 'totalPrice',
+      width: 120,
+      render: (v: number) => `¥${v}`,
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: designSortConfig.key === 'createdAt' ? 600 : 400,
+            color: designSortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleDesignSort('createdAt')}
+        >
+          创建时间
+          {designSortConfig.key === 'createdAt' ? (
+            designSortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 190,
+      render: (t: string) => new Date(t).toLocaleString(),
+    },
+    {
+      title: (
+        <span
+          style={{
+            cursor: 'pointer',
+            fontWeight: designSortConfig.key === 'updatedAt' ? 600 : 400,
+            color: designSortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
+          }}
+          onClick={() => handleDesignSort('updatedAt')}
+        >
+          更新时间
+          {designSortConfig.key === 'updatedAt' ? (
+            designSortConfig.order === 'desc' ? (
+              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            ) : (
+              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
+            )
+          ) : (
+            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
+          )}
+        </span>
+      ),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 190,
+      render: (t: string) => new Date(t).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      fixed: 'right' as const,
+      width: 90,
+      render: (_: any, d: DesignRow) => (
+        <Button
+          danger
+          size="small"
+          loading={designsLoading}
+          onClick={() => void deleteDesign(d.id)}
+          icon={<DeleteOutlined />}
+        >
+          删除
+        </Button>
+      ),
+    },
+  ]
 
   async function createDesign() {
     if (!selectedUser) return
@@ -257,7 +586,9 @@ export default function DashboardDesignsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div className="text-xl font-semibold text-zinc-900">作品集管理</div>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          作品集管理
+        </Typography.Title>
         <label className="text-sm text-zinc-700">
           管理 Token
           <input
@@ -273,25 +604,35 @@ export default function DashboardDesignsPage() {
         <div className="rounded-xl border border-zinc-200 bg-white p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="font-medium text-zinc-900">选择用户</div>
-            <button
-              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-              type="button"
-              onClick={() => loadUsers()}
-              disabled={usersLoading}
-            >
+            <Button size="small" onClick={() => loadUsers()} loading={usersLoading} icon={<ReloadOutlined />}>
               刷新
-            </button>
+            </Button>
           </div>
 
-          <label className="mb-3 block text-sm text-zinc-700">
-            搜索（id / 昵称 / 手机 / openid / 邮箱）
-            <input
-              className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              value={userQ}
-              onChange={(e) => setUserQ(e.target.value)}
-              placeholder="输入关键字"
-            />
-          </label>
+          <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} size={10}>
+            <Space.Compact style={{ width: '100%' }}>
+              <Select
+                value={userNewSearchType}
+                onChange={setUserNewSearchType}
+                style={{ width: 160 }}
+                options={userSearchOptions}
+              />
+              <Input
+                placeholder="输入关键字或日期（如 2026-03-17）"
+                value={userNewSearchValue}
+                onChange={(e) => {
+                  setUserNewSearchValue(e.target.value)
+                  setUserHasSearch(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') triggerUserSearch()
+                }}
+              />
+              <Button type="primary" onClick={triggerUserSearch} icon={<SearchOutlined />}>
+                搜索
+              </Button>
+            </Space.Compact>
+          </Space>
 
           {usersErr ? (
             <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -299,55 +640,16 @@ export default function DashboardDesignsPage() {
             </div>
           ) : null}
 
-          <div className="max-h-[420px] overflow-auto rounded-lg border border-zinc-100">
-            <table className="min-w-full text-left text-sm">
-              <thead className="sticky top-0 bg-zinc-50 text-xs uppercase text-zinc-500">
-                <tr>
-                  <th className="px-3 py-2">用户</th>
-                  <th className="px-3 py-2">作品/订单</th>
-                  <th className="px-3 py-2">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {(users || []).map((u) => {
-                  const active = selectedUser?.id === u.id
-                  return (
-                    <tr key={u.id} className={active ? 'bg-violet-50' : 'hover:bg-zinc-50'}>
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-zinc-900">{u.nickname || '-'}</div>
-                        <div className="mt-1 text-xs text-zinc-500">{u.id}</div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {u.phone || '-'} {u.weixin_openid ? `· ${u.weixin_openid}` : ''}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-zinc-700">
-                        作品 {u._count?.braceletDesigns ?? 0} · 订单 {u._count?.orders ?? 0}
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800"
-                          type="button"
-                          onClick={async () => {
-                            setSelectedUser(u)
-                            await loadDesigns(u.id)
-                          }}
-                        >
-                          选择
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-                {!usersLoading && (users?.length || 0) === 0 ? (
-                  <tr>
-                    <td className="px-3 py-6 text-center text-sm text-zinc-500" colSpan={3}>
-                      暂无用户
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            columns={userColumns as any}
+            dataSource={users}
+            rowKey="id"
+            size="small"
+            pagination={false}
+            loading={{ spinning: usersLoading, tip: '加载中...' }}
+            scroll={{ x: 'max-content', y: 420 }}
+            rowClassName={(u: UserRow) => (selectedUser?.id === u.id ? 'ant-table-row-selected' : '')}
+          />
         </div>
 
         <div className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -584,51 +886,40 @@ export default function DashboardDesignsPage() {
               </div>
 
               <div className="mt-5">
-                <div className="mb-2 text-sm font-medium text-zinc-900">该用户现有作品</div>
-                <div className="max-h-[260px] overflow-auto rounded-lg border border-zinc-100">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-zinc-50 text-xs uppercase text-zinc-500">
-                      <tr>
-                        <th className="px-3 py-2">作品</th>
-                        <th className="px-3 py-2">价格/手围</th>
-                        <th className="px-3 py-2">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                      {(designs || []).map((d) => (
-                        <tr key={d.id} className="hover:bg-zinc-50">
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-zinc-900">{d.id}</div>
-                            <div className="mt-1 text-xs text-zinc-500">
-                              {new Date(d.createdAt).toLocaleString()}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-xs text-zinc-700">
-                            ¥{d.totalPrice} · {d.wristSize ?? '--'}cm ·{' '}
-                            {d.wearingStyle || '--'}
-                          </td>
-                          <td className="px-3 py-2">
-                            <button
-                              className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                              type="button"
-                              disabled={designsLoading}
-                              onClick={() => void deleteDesign(d.id)}
-                            >
-                              删除
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {!designsLoading && (designs?.length || 0) === 0 ? (
-                        <tr>
-                          <td className="px-3 py-6 text-center text-sm text-zinc-500" colSpan={3}>
-                            暂无作品
-                          </td>
-                        </tr>
-                      ) : null}
-                    </tbody>
-                  </table>
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm font-medium text-zinc-900">该用户现有作品</div>
+                  <Space.Compact style={{ width: 420 }}>
+                    <Select
+                      value={designNewSearchType}
+                      onChange={setDesignNewSearchType}
+                      style={{ width: 160 }}
+                      options={designSearchOptions}
+                    />
+                    <Input
+                      placeholder="请输入关键词"
+                      value={designNewSearchValue}
+                      onChange={(e) => {
+                        setDesignNewSearchValue(e.target.value)
+                        setDesignHasSearch(false)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') triggerDesignSearch()
+                      }}
+                    />
+                    <Button type="primary" onClick={triggerDesignSearch} icon={<SearchOutlined />}>
+                      搜索
+                    </Button>
+                  </Space.Compact>
                 </div>
+                <Table
+                  columns={designColumns as any}
+                  dataSource={designs}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  loading={{ spinning: designsLoading, tip: '加载中...' }}
+                  scroll={{ x: 'max-content', y: 260 }}
+                />
               </div>
             </>
           )}

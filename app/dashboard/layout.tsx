@@ -74,6 +74,7 @@ export default function DashboardLayout({
   const selectedKey = (() => {
     if (!pathname) return 'dashboard'
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
+    if (pathname.startsWith('/dashboard/products')) return 'products'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
     return 'dashboard'
   })()
@@ -133,6 +134,11 @@ export default function DashboardLayout({
               key: 'orders',
               icon: <ShoppingCartOutlined />,
               label: <Link href="/dashboard/orders">订单管理</Link>,
+            },
+            {
+              key: 'products',
+              icon: <AppstoreOutlined />,
+              label: <Link href="/dashboard/products">商品管理</Link>,
             },
             {
               key: 'designs',
