@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import COS from 'cos-nodejs-sdk-v5'
-import { assertAdmin, getAdminToken } from '@/lib/admin-auth'
+import { assertAdmin } from '@/lib/admin-auth'
+import { getUserIdFromToken } from '@/lib/security'
 
 const SecretId = process.env.COS_SECRET_ID
 const SecretKey = process.env.COS_SECRET_KEY
@@ -15,10 +16,10 @@ function getCosObjectUrl(key: string): string {
 /**
  * 上传商品图片：接收 multipart/form-data 中的 file 字段，上传到腾讯云 COS，返回可访问的图片 URL
  * - 复用头像上传的 COS 上传方式
- * - 权限：管理端 token（x-admin-token / admin_token）
+ * - 权限：后台登录态（session cookie）+ 管理员角色
  */
 export async function POST(req: NextRequest) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   if (!SecretId || !SecretKey || !Bucket) {
@@ -46,8 +47,13 @@ export async function POST(req: NextRequest) {
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '') || 'jpg'
 
-    const adminToken = getAdminToken(req) || 'admin'
-    const key = `products/${adminToken}_${Date.now()}.${ext}`
+    const token =
+      req.headers.get('x-equilune-token') ||
+      req.headers.get('authorization')?.replace('Bearer ', '') ||
+      req.cookies.get('session')?.value ||
+      ''
+    const userId = (token && getUserIdFromToken(token)) || 'admin'
+    const key = `products/${userId}_${Date.now()}.${ext}`
 
     const cos = new COS({ SecretId, SecretKey })
 

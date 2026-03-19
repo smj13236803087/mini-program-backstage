@@ -75,7 +75,6 @@ function fmtTime(iso: string | null | undefined) {
 }
 
 export default function DashboardOrdersPage() {
-  const [adminToken, setAdminToken] = useState('dev-admin-token')
   const [status, setStatus] = useState('all')
   const [newSearchType, setNewSearchType] = useState('all')
   const [oldSearchType, setOldSearchType] = useState('all')
@@ -98,19 +97,6 @@ export default function DashboardOrdersPage() {
   const [data, setData] = useState<{ total: number; orders: OrderRow[] } | null>(
     null
   )
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('ADMIN_TOKEN')
-      if (saved) setAdminToken(saved)
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ADMIN_TOKEN', adminToken)
-    } catch {}
-  }, [adminToken])
 
   const queryKey = useMemo(() => {
     const s = new URLSearchParams()
@@ -140,9 +126,7 @@ export default function DashboardOrdersPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/orders?${queryKey}`, {
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/orders?${queryKey}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json?.error || `加载失败（${res.status}）`)
@@ -163,7 +147,7 @@ export default function DashboardOrdersPage() {
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, adminToken])
+  }, [queryKey])
 
   async function patchOrder(id: string, body: Record<string, any>, successMsg?: string) {
     setLoading(true)
@@ -173,7 +157,6 @@ export default function DashboardOrdersPage() {
         method: 'PATCH',
         headers: {
           'content-type': 'application/json',
-          'x-admin-token': adminToken,
         },
         body: JSON.stringify(body),
       })
@@ -202,10 +185,7 @@ export default function DashboardOrdersPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/orders/${id}`, {
-        method: 'DELETE',
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json?.error || `删除失败（${res.status}）`)
@@ -489,23 +469,6 @@ export default function DashboardOrdersPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           订单管理
         </Typography.Title>
-        <Space wrap>
-          <Space>
-            <span style={{ color: '#475569' }}>管理 Token</span>
-            <Input
-              style={{ width: 240 }}
-              value={adminToken}
-              onChange={(e) => {
-                setPagination((p) => ({ ...p, current: 1 }))
-                setAdminToken(e.target.value)
-              }}
-              placeholder="ADMIN_TOKEN"
-            />
-          </Space>
-          <Button onClick={() => load()} loading={loading} type="default" icon={<ReloadOutlined />}>
-            刷新
-          </Button>
-        </Space>
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>

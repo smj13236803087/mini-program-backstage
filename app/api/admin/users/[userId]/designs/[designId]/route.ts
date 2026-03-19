@@ -6,7 +6,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { userId: string; designId: string } }
 ) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   try {

@@ -46,7 +46,6 @@ type ProductRow = {
 }
 
 export default function DashboardDesignsPage() {
-  const [adminToken, setAdminToken] = useState('dev-admin-token')
   const [userNewSearchType, setUserNewSearchType] = useState('all')
   const [userOldSearchType, setUserOldSearchType] = useState('all')
   const [userNewSearchValue, setUserNewSearchValue] = useState('')
@@ -90,19 +89,6 @@ export default function DashboardDesignsPage() {
   )
   const [formItemsJson, setFormItemsJson] = useState('')
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('ADMIN_TOKEN')
-      if (saved) setAdminToken(saved)
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ADMIN_TOKEN', adminToken)
-    } catch {}
-  }, [adminToken])
-
   const userQueryKey = useMemo(() => {
     const sp = new URLSearchParams()
     const q = (userHasSearch ? userNewSearchValue : userOldSearchValue).trim()
@@ -127,9 +113,7 @@ export default function DashboardDesignsPage() {
     setUsersLoading(true)
     setUsersErr(null)
     try {
-      const res = await fetch(`/api/admin/users?${userQueryKey}`, {
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/users?${userQueryKey}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setUsersErr(json?.error || `加载用户失败（${res.status}）`)
@@ -151,9 +135,7 @@ export default function DashboardDesignsPage() {
     try {
       const sp = new URLSearchParams()
       if (productQ.trim()) sp.set('q', productQ.trim())
-      const res = await fetch(`/api/admin/products?${sp.toString()}`, {
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/products?${sp.toString()}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setProductsErr(json?.error || `加载商品失败（${res.status}）`)
@@ -183,9 +165,7 @@ export default function DashboardDesignsPage() {
       if (q) sp.set('q', q)
       if (field && field !== 'all') sp.set('field', field)
       if (designSortConfig.key && designSortConfig.order) sp.set('sort', `${designSortConfig.key}:${designSortConfig.order}`)
-      const res = await fetch(`/api/admin/users/${userId}/designs?${sp.toString()}`, {
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/users/${userId}/designs?${sp.toString()}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setDesignsErr(json?.error || `加载作品集失败（${res.status}）`)
@@ -204,7 +184,7 @@ export default function DashboardDesignsPage() {
   useEffect(() => {
     void loadUsers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminToken, userQueryKey])
+  }, [userQueryKey])
 
   useEffect(() => {
     if (!selectedUser) return
@@ -224,7 +204,7 @@ export default function DashboardDesignsPage() {
   useEffect(() => {
     void loadProducts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminToken, productQ])
+  }, [productQ])
 
   const handleUserSort = (key: string) => {
     setUserSortConfig((prev) => {
@@ -533,7 +513,6 @@ export default function DashboardDesignsPage() {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-admin-token': adminToken,
         },
         body: JSON.stringify({
           items,
@@ -567,7 +546,6 @@ export default function DashboardDesignsPage() {
         `/api/admin/users/${selectedUser.id}/designs/${designId}`,
         {
           method: 'DELETE',
-          headers: { 'x-admin-token': adminToken },
         }
       )
       const json = await res.json().catch(() => ({}))
@@ -589,24 +567,12 @@ export default function DashboardDesignsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           作品集管理
         </Typography.Title>
-        <label className="text-sm text-zinc-700">
-          管理 Token
-          <input
-            className="ml-2 w-56 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-            value={adminToken}
-            onChange={(e) => setAdminToken(e.target.value)}
-            placeholder="ADMIN_TOKEN"
-          />
-        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-zinc-200 bg-white p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="font-medium text-zinc-900">选择用户</div>
-            <Button size="small" onClick={() => loadUsers()} loading={usersLoading} icon={<ReloadOutlined />}>
-              刷新
-            </Button>
           </div>
 
           <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} size={10}>

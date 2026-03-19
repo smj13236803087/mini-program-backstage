@@ -6,7 +6,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   const { id } = await ctx.params
@@ -89,7 +89,7 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   const { id } = await ctx.params

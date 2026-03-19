@@ -21,7 +21,7 @@ function parseDayRange(input: string): { gte: Date; lt: Date } | null {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   const sp = req.nextUrl.searchParams

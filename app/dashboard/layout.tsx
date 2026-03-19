@@ -76,6 +76,7 @@ export default function DashboardLayout({
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
     if (pathname.startsWith('/dashboard/products')) return 'products'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
+    if (pathname.startsWith('/dashboard/users')) return 'users'
     return 'dashboard'
   })()
 
@@ -129,6 +130,11 @@ export default function DashboardLayout({
               key: 'dashboard',
               icon: <DashboardOutlined />,
               label: <Link href="/dashboard">概览</Link>,
+            },
+            {
+              key: 'users',
+              icon: <UserOutlined />,
+              label: <Link href="/dashboard/users">用户管理</Link>,
             },
             {
               key: 'orders',

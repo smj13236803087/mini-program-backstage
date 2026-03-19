@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { signSession } from '@/lib/security'
-import { wechatLogin } from '@/lib/wechat'
+import { decryptUserInfoData, getWechatSession, verifyUserInfoSignature } from '@/lib/wechat'
 
 const SESSION_DAYS = 7
+// 新用户头像由小程序端 defaultAvatar 兜底，这里不再使用任何默认 URL
+const DEFAULT_AVATAR_URL = ''
 
 function formatBirthday(d: Date): string {
   const date = new Date(d)
@@ -32,28 +34,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errno: 400, errmsg: '微信code不能为空', data: null }, { status: 400 })
     }
 
-    if (!body.userInfo) {
-      return NextResponse.json({ errno: 400, errmsg: '用户信息不能为空', data: null }, { status: 400 })
-    }
-
-    // 1. 解释用户数据（包含 signature 校验和 encryptedData 解密）
-    const { errno, errmsg, data: wechatUserInfo } = await wechatLogin(code, body.userInfo)
-    if (errno !== 0 || !wechatUserInfo) {
-      return NextResponse.json({ errno, errmsg, data: null }, { status: 400 })
-    }
-
-    // 检查 openId 是否存在
-    if (!wechatUserInfo.openId) {
-      console.error('wechatUserInfo:', JSON.stringify(wechatUserInfo, null, 2))
-      return NextResponse.json({ errno: 400, errmsg: '获取 openId 失败', data: null }, { status: 400 })
-    }
-
-    const openId = wechatUserInfo.openId
+    // 1) 使用 code 获取 openid/session_key（只调用一次，避免 code 复用失败）
+    const sessionData = await getWechatSession(code)
+    const openId = sessionData.openid
 
     // 2. 根据 weixin_openid 查找用户
     let user = await prisma.user.findUnique({
       where: { weixin_openid: openId },
     })
+
+    const isNewUser = !user
+
+    // 如果有 userInfo，解密获得昵称/头像等（需要用户确认后才能拿到）
+    const decrypted = (() => {
+      if (!body.userInfo) return null
+      const ok = verifyUserInfoSignature(body.userInfo.rawData, body.userInfo.signature, sessionData.session_key)
+      if (!ok) return null
+      return decryptUserInfoData(sessionData.session_key, body.userInfo.encryptedData, body.userInfo.iv)
+    })()
 
     if (!user) {
       try {
@@ -61,9 +59,10 @@ export async function POST(req: NextRequest) {
           data: {
             weixin_openid: openId,
             role: 'USER',
-            avatar: wechatUserInfo.avatarUrl || '',
-            gender: wechatUserInfo.gender || 0,
-            nickname: wechatUserInfo.nickName,
+            // 新用户头像使用小程序侧 defaultAvatar 兜底，这里不写默认 URL（避免 404/外链依赖）
+            avatar: '',
+            gender: typeof decrypted?.gender === 'number' ? decrypted!.gender : 0,
+            nickname: decrypted?.nickName || null,
           } as any,
         } as any)
       } catch (e: unknown) {
@@ -79,11 +78,11 @@ export async function POST(req: NextRequest) {
       // 仅在本地字段为空时，用微信信息补全
       const patch: { avatar?: string; gender?: number; nickname?: string } = {}
 
-      if (!user.avatar && wechatUserInfo.avatarUrl) patch.avatar = wechatUserInfo.avatarUrl
-      if ((user.gender === null || user.gender === undefined) && typeof wechatUserInfo.gender === 'number') {
-        patch.gender = wechatUserInfo.gender
+      if (!user.avatar && decrypted?.avatarUrl) patch.avatar = decrypted.avatarUrl
+      if ((user.gender === null || user.gender === undefined) && typeof decrypted?.gender === 'number') {
+        patch.gender = decrypted.gender
       }
-      if (!user.nickname && wechatUserInfo.nickName) patch.nickname = wechatUserInfo.nickName
+      if (!user.nickname && decrypted?.nickName) patch.nickname = decrypted.nickName
 
       if (Object.keys(patch).length > 0) {
         user = await prisma.user.update({
@@ -137,6 +136,7 @@ export async function POST(req: NextRequest) {
         errmsg: '',
         data: {
           token,
+          isNewUser,
           userInfo: {
             id: newUserInfo.id,
             nickname: newUserInfo.nickname || '微信用户',

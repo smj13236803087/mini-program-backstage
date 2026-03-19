@@ -6,7 +6,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   const sp = req.nextUrl.searchParams

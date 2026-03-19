@@ -48,7 +48,6 @@ type ProductFormValues = {
 }
 
 export default function DashboardProductsPage() {
-  const [adminToken, setAdminToken] = useState('dev-admin-token')
   const [newSearchType, setNewSearchType] = useState('all')
   const [oldSearchType, setOldSearchType] = useState('all')
   const [newSearchValue, setNewSearchValue] = useState('')
@@ -76,19 +75,6 @@ export default function DashboardProductsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProductRow | null>(null)
   const [form] = Form.useForm<ProductFormValues>()
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('ADMIN_TOKEN')
-      if (saved) setAdminToken(saved)
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ADMIN_TOKEN', adminToken)
-    } catch {}
-  }, [adminToken])
 
   const queryKey = useMemo(() => {
     const sp = new URLSearchParams()
@@ -118,9 +104,7 @@ export default function DashboardProductsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/products?${queryKey}`, {
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/products?${queryKey}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json?.error || `加载失败（${res.status}）`)
@@ -141,7 +125,7 @@ export default function DashboardProductsPage() {
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminToken, queryKey])
+  }, [queryKey])
 
   const openCreate = () => {
     setEditing(null)
@@ -197,7 +181,6 @@ export default function DashboardProductsPage() {
         method,
         headers: {
           'content-type': 'application/json',
-          'x-admin-token': adminToken,
         },
         body: JSON.stringify(payload),
       })
@@ -222,10 +205,7 @@ export default function DashboardProductsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/products/${p.id}`, {
-        method: 'DELETE',
-        headers: { 'x-admin-token': adminToken },
-      })
+      const res = await fetch(`/api/admin/products/${p.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json?.error || `删除失败（${res.status}）`)
@@ -247,7 +227,6 @@ export default function DashboardProductsPage() {
       fd.append('file', file)
       const res = await fetch('/api/upload/product-image', {
         method: 'POST',
-        headers: { 'x-admin-token': adminToken },
         body: fd,
       })
       const json = await res.json().catch(() => ({}))
@@ -430,13 +409,6 @@ export default function DashboardProductsPage() {
           商品管理
         </Typography.Title>
         <Space wrap>
-          <Space>
-            <span style={{ color: '#475569' }}>管理 Token</span>
-            <Input style={{ width: 240 }} value={adminToken} onChange={(e) => setAdminToken(e.target.value)} placeholder="ADMIN_TOKEN" />
-          </Space>
-          <Button onClick={() => load()} loading={loading} icon={<ReloadOutlined />}>
-            刷新
-          </Button>
           <Button type="primary" onClick={openCreate} icon={<PlusOutlined />}>
             新增商品
           </Button>
