@@ -66,7 +66,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
-  const denied = assertAdmin(req)
+  const denied = await assertAdmin(req)
   if (denied) return denied
 
   const user = await prisma.user.findUnique({

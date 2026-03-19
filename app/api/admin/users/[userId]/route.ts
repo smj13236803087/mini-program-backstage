@@ -19,12 +19,12 @@ function normalizeGender(input: unknown): number {
 
 export async function PATCH(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ userId: string }> }
 ) {
   const denied = await assertAdmin(req)
   if (denied) return denied
 
-  const { id } = await ctx.params
+  const { userId } = await ctx.params
   const body = (await req.json().catch(() => null)) as
     | {
         nickname?: string
@@ -37,7 +37,7 @@ export async function PATCH(
 
   if (!body) return NextResponse.json({ error: '请求体不能为空' }, { status: 400 })
 
-  const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } })
+  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
   if (!exists) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
   const data: {
@@ -66,7 +66,7 @@ export async function PATCH(
     const v = String(body.weixin_openid || '').trim()
     if (v) {
       const existsOpenId = await prisma.user.findFirst({
-        where: { weixin_openid: v, id: { not: id } },
+        where: { weixin_openid: v, id: { not: userId } },
         select: { id: true },
       })
       if (existsOpenId) {
@@ -77,7 +77,7 @@ export async function PATCH(
   }
 
   const updated = await prisma.user.update({
-    where: { id },
+    where: { id: userId },
     data,
     select: {
       id: true,
@@ -96,16 +96,16 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ userId: string }> }
 ) {
   const denied = await assertAdmin(req)
   if (denied) return denied
 
-  const { id } = await ctx.params
-  const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } })
+  const { userId } = await ctx.params
+  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
   if (!exists) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
-  await prisma.user.delete({ where: { id } })
+  await prisma.user.delete({ where: { id: userId } })
   return NextResponse.json({ ok: true }, { status: 200 })
 }
 
