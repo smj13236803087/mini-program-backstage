@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { Suspense, useState } from 'react'
 import { Form, Input, Button, Card, message } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
 import { useRouter, useSearchParams } from 'next/navigation'
 import styles from './ResetPassword.module.css'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams?.get('token') || ''
@@ -56,6 +56,14 @@ export default function ResetPasswordPage() {
         </Form>
       </Card>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>加载中...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
 
