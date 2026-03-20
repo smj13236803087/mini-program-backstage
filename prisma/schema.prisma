@@ -154,6 +154,9 @@ model Order {
   freightAmount Decimal @db.Decimal(10, 2) @default(0.0) // 运费金额
   remark String? // 用户备注
 
+  /// 实物检视阶段上传的实拍图（1-3 张 URL）
+  inspectImages Json?
+
   /// 收件人快照（下单时写死，避免地址后改动）
   recipient String
   phone     String

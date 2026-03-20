@@ -58,6 +58,7 @@ export async function PATCH(
         payStatus?: string
         shippingCompany?: string | null
         trackingNo?: string | null
+        inspectImages?: string[] | null
         refundStatus?: string | null
         refundAmount?: number | string | null
         refundReason?: string | null
@@ -87,6 +88,25 @@ export async function PATCH(
     if (nextStatus === 'refund' && !body.refundStatus) {
       data.refundStatus = 'requested'
     }
+  }
+
+  // 实物检视阶段需要上传 1-3 张实拍图
+  if (body.inspectImages !== undefined) {
+    const raw = body.inspectImages
+    const list = Array.isArray(raw) ? raw : []
+    const cleaned = list
+      .map((x) => (typeof x === 'string' ? x.trim() : ''))
+      .filter(Boolean)
+    if (cleaned.length > 3) {
+      return NextResponse.json({ error: 'inspectImages 最多 3 张' }, { status: 400 })
+    }
+    if (cleaned.length < 1) {
+      return NextResponse.json({ error: 'inspectImages 至少 1 张' }, { status: 400 })
+    }
+    // 仅在传入时更新
+    data.inspectImages = cleaned
+  } else if (nextStatus === 'inspect') {
+    return NextResponse.json({ error: '切换到 inspect 需要上传 inspectImages（1-3 张）' }, { status: 400 })
   }
 
   // 支付状态：用于“模拟支付”或补单

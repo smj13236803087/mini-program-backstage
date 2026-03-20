@@ -13,9 +13,10 @@ import {
   GiftOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UploadOutlined,
   ToolOutlined,
 } from '@ant-design/icons'
-import { Button, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Image, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 
 type OrderRow = {
   id: string
@@ -34,6 +35,7 @@ type OrderRow = {
   receivedAt: string | null
   refundStatus: string | null
   refundAmount: any | null
+  inspectImages?: string[] | null
   createdAt: string
   updatedAt: string
   user: { id: string; nickname: string | null; phone: string | null } | null
@@ -98,6 +100,13 @@ export default function DashboardOrdersPage() {
     null
   )
 
+  // 实物检视图片上传弹窗
+  const [inspectModalOpen, setInspectModalOpen] = useState(false)
+  const [inspectOrderId, setInspectOrderId] = useState<string | null>(null)
+  const [inspectImages, setInspectImages] = useState<string[]>([])
+  const [inspectUploading, setInspectUploading] = useState(false)
+  const [inspectError, setInspectError] = useState<string | null>(null)
+
   const queryKey = useMemo(() => {
     const s = new URLSearchParams()
     if (status && status !== 'all') s.set('status', status)
@@ -149,7 +158,7 @@ export default function DashboardOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey])
 
-  async function patchOrder(id: string, body: Record<string, any>, successMsg?: string) {
+  async function patchOrder(id: string, body: Record<string, any>, successMsg?: string): Promise<boolean> {
     setLoading(true)
     setError(null)
     try {
@@ -163,7 +172,7 @@ export default function DashboardOrdersPage() {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json?.error || `更新失败（${res.status}）`)
-        return
+        return false
       }
       if (successMsg) {
         try {
@@ -171,11 +180,91 @@ export default function DashboardOrdersPage() {
         } catch {}
       }
       await load()
+      return true
     } catch (e) {
       setError(`更新失败：${String(e)}`)
+      return false
     } finally {
       setLoading(false)
     }
+  }
+
+  function openInspectModal(o: OrderRow) {
+    const existing = (Array.isArray(o.inspectImages) ? o.inspectImages : []) as string[]
+    setInspectOrderId(o.id)
+    setInspectImages(existing.filter(Boolean).slice(0, 3))
+    setInspectError(null)
+    setInspectModalOpen(true)
+  }
+
+  function closeInspectModal() {
+    setInspectModalOpen(false)
+    setInspectOrderId(null)
+    setInspectImages([])
+    setInspectError(null)
+    setInspectUploading(false)
+  }
+
+  async function uploadInspectImage(file: File): Promise<string> {
+    const fd = new FormData()
+    fd.append('file', file)
+
+    const res = await fetch('/api/upload/order-inspect-image', {
+      method: 'POST',
+      body: fd,
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error(json?.error || json?.errmsg || `上传失败（${res.status}）`)
+    }
+    const url = json?.url || ''
+    if (!url) throw new Error('上传成功但未返回 url')
+    return String(url)
+  }
+
+  async function handlePickInspectImages() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = true
+    input.onchange = () => {
+      const files = Array.from(input.files || [])
+      if (!files.length) return
+      void (async () => {
+        setInspectUploading(true)
+        setInspectError(null)
+        try {
+          const remaining = 3 - inspectImages.length
+          if (remaining <= 0) {
+            setInspectError('最多只能上传 3 张图片')
+            return
+          }
+          const chosen = files.slice(0, remaining)
+          const newUrls: string[] = []
+          for (const f of chosen) {
+            const url = await uploadInspectImage(f)
+            newUrls.push(url)
+          }
+          setInspectImages((prev) => [...prev, ...newUrls].filter(Boolean).slice(0, 3))
+        } catch (e: any) {
+          setInspectError(e?.message || String(e))
+        } finally {
+          setInspectUploading(false)
+        }
+      })()
+    }
+    input.click()
+  }
+
+  async function submitInspect() {
+    if (!inspectOrderId) return
+    setInspectError(null)
+    if (inspectImages.length < 1 || inspectImages.length > 3) {
+      setInspectError('请上传 1-3 张实拍图片')
+      return
+    }
+    const ok = await patchOrder(inspectOrderId, { status: 'inspect', inspectImages }, '已标记为实物检视')
+    if (ok) closeInspectModal()
   }
 
   async function deleteOrder(id: string) {
@@ -395,7 +484,7 @@ export default function DashboardOrdersPage() {
           <Button
             size="small"
             disabled={loading}
-            onClick={() => patchOrder(o.id, { status: 'inspect' }, '已标记为实物检视')}
+            onClick={() => openInspectModal(o)}
             icon={<EyeOutlined />}
           >
             实物检视
@@ -534,6 +623,62 @@ export default function DashboardOrdersPage() {
         }}
         scroll={{ x: 'max-content' }}
       />
+
+      <Modal
+        title="实物检视图片上传（1-3 张）"
+        open={inspectModalOpen}
+        onCancel={() => {
+          if (inspectUploading || loading) return
+          closeInspectModal()
+        }}
+        okText="提交并标记实物检视"
+        cancelText="取消"
+        confirmLoading={inspectUploading || loading}
+        onOk={() => void submitInspect()}
+        destroyOnClose
+      >
+        <div style={{ color: '#64748b', marginBottom: 12 }}>请上传 1-3 张能量师实拍图，上传完成后再提交。</div>
+
+        {inspectError ? (
+          <div style={{ border: '1px solid #fecaca', background: '#fff1f2', padding: 10, borderRadius: 8, color: '#be123c' }}>
+            {inspectError}
+          </div>
+        ) : null}
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => void handlePickInspectImages()}
+            disabled={inspectUploading || loading || inspectImages.length >= 3}
+          >
+            选择并上传图片
+          </Button>
+
+          <Button
+            onClick={() => setInspectImages([])}
+            disabled={inspectUploading || loading || inspectImages.length === 0}
+          >
+            清空
+          </Button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {inspectImages.map((url, idx) => (
+            <div key={`${url}_${idx}`} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+              <Image
+                src={url}
+                width={88}
+                height={88}
+                style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }}
+                preview
+              />
+              <Button type="link" size="small" onClick={() => setInspectImages((prev) => prev.filter((_, i) => i !== idx))}>
+                删除
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }
