@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { id: { contains: q } },
         { weixin_openid: { contains: q } },
+        { email: { contains: q } },
         { nickname: { contains: q } },
         { role: { equals: q.toUpperCase() } },
         ...(dayRange
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
     } else if (
       field === 'id' ||
       field === 'weixin_openid' ||
+      field === 'email' ||
       field === 'nickname'
     ) {
       where[field] = { contains: q }
@@ -82,6 +84,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { id: { contains: q } },
         { weixin_openid: { contains: q } },
+        { email: { contains: q } },
         { nickname: { contains: q } },
         { role: { equals: q.toUpperCase() } },
       ]
@@ -108,6 +111,7 @@ export async function GET(req: NextRequest) {
         id: true,
         role: true,
         weixin_openid: true,
+        email: true,
         avatar: true,
         gender: true,
         nickname: true,
@@ -170,6 +174,7 @@ export async function POST(req: NextRequest) {
       id: true,
       role: true,
       weixin_openid: true,
+      email: true,
       avatar: true,
       gender: true,
       nickname: true,

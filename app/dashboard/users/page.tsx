@@ -28,9 +28,12 @@ type UserRow = {
   id: string
   role: string
   weixin_openid: string | null
+  email: string | null
   avatar: string | null
   gender: number | null
   nickname: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 type UserFormValues = {
@@ -53,6 +56,13 @@ function genderText(gender: number | null | undefined) {
   if (gender === 1) return '男'
   if (gender === 2) return '女'
   return '未知'
+}
+
+function formatTime(v: string | null | undefined) {
+  if (!v) return '-'
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return '-'
+  return d.toLocaleString('zh-CN', { hour12: false })
 }
 
 export default function DashboardUsersPage() {
@@ -231,6 +241,16 @@ export default function DashboardUsersPage() {
       width: 100,
     },
     {
+      title: '邮箱',
+      dataIndex: 'email',
+      render: (v) => (
+        <Typography.Text style={{ maxWidth: 240 }} ellipsis={{ tooltip: v || '' }}>
+          {v || '-'}
+        </Typography.Text>
+      ),
+      width: 240,
+    },
+    {
       title: '微信 OpenID',
       dataIndex: 'weixin_openid',
       render: (v) => (
@@ -245,6 +265,18 @@ export default function DashboardUsersPage() {
       dataIndex: 'role',
       render: (v) => roleTag(String(v || '')),
       width: 140,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      render: (v) => formatTime(v),
+      width: 180,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      render: (v) => formatTime(v),
+      width: 180,
     },
     {
       title: '操作',
@@ -288,6 +320,7 @@ export default function DashboardUsersPage() {
               { value: 'all', label: '全部字段' },
               { value: 'id', label: '用户ID' },
               { value: 'nickname', label: '昵称' },
+              { value: 'email', label: '邮箱' },
               { value: 'weixin_openid', label: 'OpenID' },
               { value: 'role', label: '角色(USER/SUPER_ADMIN)' },
             ]}
@@ -333,7 +366,7 @@ export default function DashboardUsersPage() {
           loading={loading}
           columns={columns}
           dataSource={users}
-          scroll={{ x: 980 }}
+          scroll={{ x: 1600 }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,

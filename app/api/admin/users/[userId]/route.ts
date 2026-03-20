@@ -83,6 +83,7 @@ export async function PATCH(
       id: true,
       role: true,
       weixin_openid: true,
+      email: true,
       avatar: true,
       gender: true,
       nickname: true,
