@@ -37,10 +37,12 @@ type UserRow = {
 }
 
 type UserFormValues = {
+  email?: string | null
   nickname: string
   avatar?: string
   gender: number
   weixin_openid?: string
+  password?: string
   role: 'USER' | 'SUPER_ADMIN'
 }
 
@@ -135,10 +137,12 @@ export default function DashboardUsersPage() {
   const openCreate = () => {
     setEditing(null)
     form.setFieldsValue({
+      email: '',
       nickname: '',
       avatar: '',
       gender: 0,
       weixin_openid: '',
+      password: '',
       role: 'USER',
     })
     setModalOpen(true)
@@ -147,11 +151,13 @@ export default function DashboardUsersPage() {
   const openEdit = (row: UserRow) => {
     setEditing(row)
     form.setFieldsValue({
+      email: row.email || '',
       nickname: row.nickname || '',
       avatar: row.avatar || '',
       gender: Number(row.gender ?? 0),
       weixin_openid: row.weixin_openid || '',
       role: row.role === 'SUPER_ADMIN' || row.role === 'ADMIN' ? 'SUPER_ADMIN' : 'USER',
+      password: '',
     })
     setModalOpen(true)
   }
@@ -159,11 +165,13 @@ export default function DashboardUsersPage() {
   const submitForm = async () => {
     const values = await form.validateFields()
     const payload = {
+      email: values.email ? String(values.email).trim().toLowerCase() : '',
       nickname: values.nickname.trim(),
       avatar: (values.avatar || '').trim(),
       gender: Number(values.gender || 0),
       weixin_openid: (values.weixin_openid || '').trim(),
       role: values.role,
+      ...(values.password && String(values.password).trim() ? { password: String(values.password).trim() } : {}),
     }
 
     setSaving(true)
@@ -391,6 +399,39 @@ export default function DashboardUsersPage() {
         cancelText="取消"
       >
         <Form<UserFormValues> form={form} layout="vertical">
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[
+              {
+                type: 'email',
+                message: '邮箱格式不正确',
+              },
+            ]}
+          >
+            <Input placeholder="可为空；如填写将用于忘记密码" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="密码"
+            rules={[
+              {
+                required: !editing,
+                message: '请输入密码',
+              },
+              {
+                validator: (_, value) => {
+                  const v = typeof value === 'string' ? value.trim() : ''
+                  // 创建时密码不能为空；编辑时留空表示不修改密码
+                  if (!v) return editing ? Promise.resolve() : Promise.reject(new Error('请输入密码'))
+                  if (v.length < 8) return Promise.reject(new Error('密码长度至少 8 位'))
+                  return Promise.resolve()
+                },
+              },
+            ]}
+          >
+            <Input.Password placeholder={editing ? '留空表示不修改' : '请输入密码'} />
+          </Form.Item>
           <Form.Item
             name="nickname"
             label="昵称"

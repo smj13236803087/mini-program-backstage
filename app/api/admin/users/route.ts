@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { assertAdmin } from '@/lib/admin-auth'
+import { hashPassword, isValidEmail } from '@/lib/security'
 
 const ALLOWED_ROLES = ['USER', 'SUPER_ADMIN'] as const
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
@@ -130,18 +131,40 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => null)) as
     | {
+        email?: unknown
         nickname?: string
         avatar?: string | null
         gender?: number | string | null
         weixin_openid?: string | null
+        password?: unknown
         role?: string
       }
     | null
 
   if (!body) return NextResponse.json({ error: '请求体不能为空' }, { status: 400 })
 
+  const email = body.email === undefined ? '' : String(body.email || '').trim().toLowerCase()
+  if (email && !isValidEmail(email)) {
+    return NextResponse.json({ error: 'email 格式不正确' }, { status: 400 })
+  }
+
   const nickname = String(body.nickname || '').trim()
   if (!nickname) return NextResponse.json({ error: 'nickname 不能为空' }, { status: 400 })
+
+  const passwordRaw = typeof body.password === 'string' ? body.password.trim() : ''
+  if (!passwordRaw) {
+    return NextResponse.json({ error: 'password 不能为空' }, { status: 400 })
+  }
+
+  let hashedPassword = ''
+  try {
+    hashedPassword = hashPassword(passwordRaw)
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'password 无效' },
+      { status: 400 }
+    )
+  }
 
   const role = normalizeRole(body.role)
   if (!role) {
@@ -162,13 +185,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (email) {
+    const existsEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+    if (existsEmail) {
+      return NextResponse.json({ error: 'email 已存在' }, { status: 409 })
+    }
+  }
+
   const created = await prisma.user.create({
     data: {
       nickname,
+      password: hashedPassword,
       avatar: avatar || '',
       gender,
       role,
       weixin_openid: weixinOpenId || null,
+      email: email || null,
     },
     select: {
       id: true,

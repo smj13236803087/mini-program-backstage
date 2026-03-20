@@ -42,6 +42,32 @@ export async function GET(
     return NextResponse.json({ error: '作品不存在' }, { status: 404 })
   }
 
+  // 富化：把 Product.imageUrl 按 design.items[*].productId 注入 design.items[*].imageUrl
+  const items = (design as any)?.items
+  if (Array.isArray(items) && items.length > 0) {
+    const productIds = new Set<string>()
+    for (const it of items as any[]) {
+      const pid = it?.productId
+      if (pid) productIds.add(String(pid))
+    }
+
+    if (productIds.size > 0) {
+      const products = await prisma.product.findMany({
+        where: { id: { in: Array.from(productIds) } },
+        select: { id: true, imageUrl: true },
+      })
+      const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+
+      ;(design as any).items = (items as any[]).map((it) => {
+        const pid = it?.productId ? String(it.productId) : ''
+        if (!pid) return it
+        if (it?.imageUrl) return it
+        const resolved = imageMap.get(pid)
+        return { ...it, imageUrl: resolved }
+      })
+    }
+  }
+
   return NextResponse.json({ design }, { status: 200 })
 }
 

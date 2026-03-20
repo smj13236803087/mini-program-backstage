@@ -93,7 +93,6 @@ export default function LoginPage() {
                   登录
                 </Button>
                 <div className={styles.links}>
-                  <Link href="/register">注册账号</Link>
                   <Link href="/forgot-password">忘记密码</Link>
                 </div>
               </Form.Item>

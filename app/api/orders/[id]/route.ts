@@ -47,6 +47,53 @@ export async function GET(
     return NextResponse.json({ error: '订单不存在' }, { status: 404 })
   }
 
+  // 富化：把 Product.imageUrl 注入 order.designSnapshot / order.items[*].snapshot 里的 bead.imageUrl
+  const snapshots: any[] = []
+  if ((order as any)?.designSnapshot) snapshots.push((order as any).designSnapshot)
+  const firstItem = (order.items || [])[0] as any
+  if (firstItem?.snapshot) snapshots.push(firstItem.snapshot)
+
+  const productIds = new Set<string>()
+  const collectFromDesignLike = (x: any) => {
+    if (!x) return
+    const design = x?.design || x
+    const beadItems = design?.items || design?.beads
+    if (!Array.isArray(beadItems)) return
+    for (const it of beadItems as any[]) {
+      const pid = it?.productId
+      if (pid) productIds.add(String(pid))
+    }
+  }
+  for (const s of snapshots) collectFromDesignLike(s)
+
+  if (productIds.size > 0) {
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(productIds) } },
+      select: { id: true, imageUrl: true },
+    })
+    const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+
+    const injectIntoDesignLike = (x: any) => {
+      if (!x) return
+      const design = x?.design || x
+      const beadItems = design?.items || design?.beads
+      if (!Array.isArray(beadItems)) return
+
+      const nextItems = (beadItems as any[]).map((it) => {
+        const pid = it?.productId ? String(it.productId) : ''
+        if (!pid) return it
+        if (it?.imageUrl) return it
+        const resolved = imageMap.get(pid)
+        return resolved ? { ...it, imageUrl: resolved } : it
+      })
+
+      if (Array.isArray(design?.items)) design.items = nextItems
+      if (Array.isArray(design?.beads)) design.beads = nextItems
+    }
+
+    for (const s of snapshots) injectIntoDesignLike(s)
+  }
+
   return NextResponse.json({ order }, { status: 200 })
 }
 

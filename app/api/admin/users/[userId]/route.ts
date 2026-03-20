@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { assertAdmin } from '@/lib/admin-auth'
+import { hashPassword, isValidEmail } from '@/lib/security'
 
 const ALLOWED_ROLES = ['USER', 'SUPER_ADMIN'] as const
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
@@ -27,10 +28,12 @@ export async function PATCH(
   const { userId } = await ctx.params
   const body = (await req.json().catch(() => null)) as
     | {
+        email?: string | null
         nickname?: string
         avatar?: string | null
         gender?: number | string | null
         weixin_openid?: string | null
+        password?: unknown
         role?: string
       }
     | null
@@ -41,6 +44,8 @@ export async function PATCH(
   if (!exists) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
   const data: {
+    password?: string
+    email?: string | null
     nickname?: string
     avatar?: string
     gender?: number
@@ -62,6 +67,39 @@ export async function PATCH(
     }
     data.role = role
   }
+
+  if (body.password !== undefined) {
+    const passwordRaw = typeof body.password === 'string' ? body.password.trim() : ''
+    if (!passwordRaw) {
+      return NextResponse.json({ error: 'password 不能为空' }, { status: 400 })
+    }
+    try {
+      data.password = hashPassword(passwordRaw)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'password 无效' },
+        { status: 400 }
+      )
+    }
+  }
+
+  if (body.email !== undefined) {
+    const email = body.email === null ? '' : String(body.email || '').trim().toLowerCase()
+    if (email && !isValidEmail(email)) {
+      return NextResponse.json({ error: 'email 格式不正确' }, { status: 400 })
+    }
+    if (email) {
+      const existsEmail = await prisma.user.findFirst({
+        where: { email, id: { not: userId } },
+        select: { id: true },
+      })
+      if (existsEmail) {
+        return NextResponse.json({ error: 'email 已存在' }, { status: 409 })
+      }
+    }
+    data.email = email || null
+  }
+
   if (body.weixin_openid !== undefined) {
     const v = String(body.weixin_openid || '').trim()
     if (v) {

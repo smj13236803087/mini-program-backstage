@@ -9,6 +9,14 @@ export async function POST(req: NextRequest) {
     code?: unknown
   }
 
+  // 默认禁用公开注册，避免未经授权的账号被创建后直接登录
+  if (process.env.ALLOW_PUBLIC_REGISTER !== 'true') {
+    return NextResponse.json(
+      { errno: 403, errmsg: '注册已禁用，请联系管理员开通账号', data: null },
+      { status: 200 }
+    )
+  }
+
   if (!body) {
     return NextResponse.json(
       { errno: 400, errmsg: '请求体不能为空', data: null },

@@ -46,6 +46,35 @@ export async function GET(req: NextRequest) {
     },
   })
 
+  // 富化：把 Product.imageUrl 按 bead.productId 注入到 design.items[*].imageUrl
+  const productIds = new Set<string>()
+  for (const d of designs as any[]) {
+    const items = (d?.items && Array.isArray(d.items) ? d.items : []) as any[]
+    for (const it of items) {
+      const pid = it?.productId
+      if (pid) productIds.add(String(pid))
+    }
+  }
+
+  if (productIds.size > 0) {
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(productIds) } },
+      select: { id: true, imageUrl: true },
+    })
+    const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+
+    for (const d of designs as any[]) {
+      if (!Array.isArray(d.items)) continue
+      d.items = (d.items as any[]).map((it) => {
+        const pid = it?.productId ? String(it.productId) : ''
+        if (!pid) return it
+        const resolved = imageMap.get(pid)
+        if (it?.imageUrl) return it
+        return { ...it, imageUrl: resolved }
+      })
+    }
+  }
+
   return NextResponse.json({ designs }, { status: 200 })
 }
 
