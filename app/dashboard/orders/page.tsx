@@ -394,6 +394,31 @@ export default function DashboardOrdersPage() {
       ),
     },
     {
+      title: '实物检视图',
+      dataIndex: 'inspectImages',
+      key: 'inspectImages',
+      width: 240,
+      render: (_: any, o: OrderRow) => {
+        const list = Array.isArray(o.inspectImages) ? o.inspectImages : []
+        const urls = list.filter(Boolean).slice(0, 3)
+        if (!urls.length) return '-'
+        return (
+          <Space size={8} wrap>
+            {urls.map((url, idx) => (
+              <Image
+                key={`${idx}_${url}`}
+                src={url}
+                width={48}
+                height={48}
+                style={{ objectFit: 'cover', borderRadius: 8 }}
+                preview={{ mask: '查看' }}
+              />
+            ))}
+          </Space>
+        )
+      },
+    },
+    {
       title: '支付',
       key: 'pay',
       width: 140,
