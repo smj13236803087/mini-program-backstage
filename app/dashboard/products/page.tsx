@@ -15,36 +15,35 @@ import { Button, Form, Image, Input, InputNumber, Modal, Select, Space, Table, T
 
 type ProductRow = {
   id: string
+  materialCode: string | null
   title: string
-  productType: string
   price: any
   diameter: string | null
   weight: string | null
   stock: number
   imageUrl: string | null
-  images: any
-  energy_tags: any
+  majorCategory: string | null
+  productGender: string | null
+  colorSeries: string | null
+  texture: string | null
+  energyScience: string | null
   createdAt: string
   updatedAt: string
 }
 
-function parseEnergyTags(text: string): string[] {
-  const list = (text || '')
-    .split(/[,，]/g)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  return Array.from(new Set(list)).slice(0, 30)
-}
-
 type ProductFormValues = {
+  materialCode?: string
   title: string
-  productType: string
   price: number
   stock: number
   diameter?: string
   weight?: string
   imageUrl?: string
-  energyTagsText?: string
+  majorCategory?: string
+  productGender?: string
+  colorSeries?: string
+  texture?: string
+  energyScience?: string
 }
 
 export default function DashboardProductsPage() {
@@ -75,6 +74,39 @@ export default function DashboardProductsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProductRow | null>(null)
   const [form] = Form.useForm<ProductFormValues>()
+  const imageUrlValue = Form.useWatch('imageUrl', form)
+
+  const emptyFormValues: ProductFormValues = {
+    materialCode: '',
+    title: '',
+    price: 0,
+    stock: 0,
+    diameter: '',
+    weight: '',
+    imageUrl: '',
+    majorCategory: '',
+    productGender: '',
+    colorSeries: '',
+    texture: '',
+    energyScience: '',
+  }
+
+  const formInitialValues: ProductFormValues = editing
+    ? {
+        materialCode: editing.materialCode || '',
+        title: editing.title || '',
+        price: Number(editing.price || 0),
+        stock: Number(editing.stock || 0),
+        diameter: editing.diameter || '',
+        weight: editing.weight || '',
+        imageUrl: editing.imageUrl || '',
+        majorCategory: editing.majorCategory || '',
+        productGender: editing.productGender || '',
+        colorSeries: editing.colorSeries || '',
+        texture: editing.texture || '',
+        energyScience: editing.energyScience || '',
+      }
+    : emptyFormValues
 
   const queryKey = useMemo(() => {
     const sp = new URLSearchParams()
@@ -129,46 +161,30 @@ export default function DashboardProductsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
-      title: '',
-      productType: '',
-      price: 0,
-      stock: 0,
-      diameter: '',
-      weight: '',
-      imageUrl: '',
-      energyTagsText: '',
-    })
     setModalOpen(true)
   }
 
   const openEdit = (p: ProductRow) => {
     setEditing(p)
-    form.resetFields()
-    form.setFieldsValue({
-      title: p.title || '',
-      productType: p.productType || '',
-      price: Number(p.price || 0),
-      stock: Number(p.stock || 0),
-      diameter: p.diameter || '',
-      weight: p.weight || '',
-      imageUrl: p.imageUrl || '',
-      energyTagsText: Array.isArray(p.energy_tags) ? p.energy_tags.join(',') : '',
-    })
     setModalOpen(true)
   }
 
   const submit = async (values: ProductFormValues) => {
-    const payload = {
+    const payload: any = {
       title: values.title.trim(),
-      productType: values.productType.trim(),
       price: Number(values.price),
       stock: Number(values.stock),
       diameter: (values.diameter || '').trim() || null,
       weight: (values.weight || '').trim() || null,
       imageUrl: (values.imageUrl || '').trim() || null,
-      energy_tags: parseEnergyTags(values.energyTagsText || ''),
+      majorCategory: (values.majorCategory || '').trim() || null,
+      productGender: (values.productGender || '').trim() || null,
+      colorSeries: (values.colorSeries || '').trim() || null,
+      texture: (values.texture || '').trim() || null,
+      energyScience: (values.energyScience || '').trim() || null,
+    }
+    if (!editing) {
+      payload.materialCode = (values.materialCode || '').trim() || null
     }
 
     setSaving(true)
@@ -279,7 +295,8 @@ export default function DashboardProductsPage() {
     { label: '全部', value: 'all' },
     { label: '商品ID', value: 'id' },
     { label: '商品标题', value: 'title' },
-    { label: '商品类型', value: 'productType' },
+    { label: '物料编号', value: 'materialCode' },
+    { label: '大分类', value: 'majorCategory' },
     { label: '直径规格', value: 'diameter' },
     { label: '创建时间（输入日期）', value: 'createdAt' },
     { label: '更新时间（输入日期）', value: 'updatedAt' },
@@ -313,11 +330,21 @@ export default function DashboardProductsPage() {
       render: (t: string, p: ProductRow) => (
         <div>
           <div style={{ fontWeight: 600 }}>{t}</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{p.id}</div>
         </div>
       ),
     },
-    { title: '类型', dataIndex: 'productType', key: 'productType', width: 140 },
+    { title: '物料编号', dataIndex: 'materialCode', key: 'materialCode', width: 120 },
+    { title: '大分类', dataIndex: 'majorCategory', key: 'majorCategory', width: 120 },
+    { title: '性别', dataIndex: 'productGender', key: 'productGender', width: 100 },
+    { title: '色系', dataIndex: 'colorSeries', key: 'colorSeries', width: 120 },
+    { title: '质感', dataIndex: 'texture', key: 'texture', width: 120 },
+    {
+      title: '深度能量科普',
+      dataIndex: 'energyScience',
+      key: 'energyScience',
+      width: 280,
+      render: (v: string | null) => (v ? <span title={v}>{v.slice(0, 60)}{v.length > 60 ? '...' : ''}</span> : '-'),
+    },
     { title: '价格', dataIndex: 'price', key: 'price', width: 110, render: (v: any) => String(v) },
     { title: '库存', dataIndex: 'stock', key: 'stock', width: 100 },
     {
@@ -498,17 +525,38 @@ export default function DashboardProductsPage() {
         }}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" onFinish={submit} preserve={false}>
-          <Form.Item name="title" label="title" rules={[{ required: true, message: '请输入 title' }]}>
+        <Form
+          key={editing?.id || 'create'}
+          form={form}
+          layout="vertical"
+          onFinish={submit}
+          preserve={false}
+          initialValues={formInitialValues}
+        >
+          {!editing ? (
+            <Form.Item name="materialCode" label="物料编号">
+              <Input placeholder="可选，需唯一" />
+            </Form.Item>
+          ) : null}
+          <Form.Item name="title" label="物料名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="productType" label="productType" rules={[{ required: true, message: '请输入 productType' }]}>
-            <Input placeholder="例如：main / spacer / accessory" />
+          <Form.Item name="majorCategory" label="大分类">
+            <Input placeholder="例如：主珠、配珠" />
+          </Form.Item>
+          <Form.Item name="productGender" label="性别">
+            <Input />
+          </Form.Item>
+          <Form.Item name="colorSeries" label="色系">
+            <Input />
+          </Form.Item>
+          <Form.Item name="texture" label="质感">
+            <Input />
           </Form.Item>
           <Space style={{ width: '100%' }} size={12}>
             <Form.Item
               name="price"
-              label="price（元）"
+              label="价格（元）"
               rules={[{ required: true, message: '请输入价格' }]}
               style={{ flex: 1, marginBottom: 0 }}
             >
@@ -516,7 +564,7 @@ export default function DashboardProductsPage() {
             </Form.Item>
             <Form.Item
               name="stock"
-              label="stock"
+              label="库存"
               rules={[{ required: true, message: '请输入库存' }]}
               style={{ flex: 1, marginBottom: 0 }}
             >
@@ -524,15 +572,15 @@ export default function DashboardProductsPage() {
             </Form.Item>
           </Space>
           <Space style={{ width: '100%', marginTop: 12 }} size={12}>
-            <Form.Item name="diameter" label="diameter" style={{ flex: 1, marginBottom: 0 }}>
+            <Form.Item name="diameter" label="直径" style={{ flex: 1, marginBottom: 0 }}>
               <Input placeholder="例如：6mm" />
             </Form.Item>
-            <Form.Item name="weight" label="weight" style={{ flex: 1, marginBottom: 0 }}>
+            <Form.Item name="weight" label="重量" style={{ flex: 1, marginBottom: 0 }}>
               <Input placeholder="例如：1.2g" />
             </Form.Item>
           </Space>
 
-          <Form.Item label="图片（imageUrl）" style={{ marginTop: 12 }}>
+          <Form.Item label="图片" style={{ marginTop: 12 }}>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Space wrap>
                 <Button
@@ -552,20 +600,15 @@ export default function DashboardProductsPage() {
                 >
                   {uploading ? '上传中...' : '选择并上传'}
                 </Button>
-                <Form.Item noStyle shouldUpdate={(prev, next) => prev.imageUrl !== next.imageUrl}>
-                  {({ getFieldValue }) => {
-                    const url = String(getFieldValue('imageUrl') || '')
-                    return url ? (
-                      <Image
-                        src={url}
-                        width={64}
-                        height={64}
-                        style={{ objectFit: 'cover', borderRadius: 8 }}
-                        preview
-                      />
-                    ) : null
-                  }}
-                </Form.Item>
+                {imageUrlValue ? (
+                  <Image
+                    src={String(imageUrlValue)}
+                    width={64}
+                    height={64}
+                    style={{ objectFit: 'cover', borderRadius: 8 }}
+                    preview
+                  />
+                ) : null}
               </Space>
               <Form.Item name="imageUrl" noStyle>
                 <Input placeholder="也可以直接粘贴图片 URL" />
@@ -573,8 +616,8 @@ export default function DashboardProductsPage() {
             </Space>
           </Form.Item>
 
-          <Form.Item name="energyTagsText" label="energy_tags（逗号分隔）">
-            <Input placeholder="例如：情绪,智慧,睡眠" />
+          <Form.Item name="energyScience" label="深度能量科普">
+            <Input.TextArea rows={4} placeholder="长文本" />
           </Form.Item>
         </Form>
       </Modal>

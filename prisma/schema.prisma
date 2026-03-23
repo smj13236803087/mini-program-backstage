@@ -12,13 +12,22 @@ datasource db {
 
 model Product {
   id String @id @default(cuid())
+  /// 物料编号（Excel 导入；工作台珠子稳定 id 优先用此字段）
+  materialCode String? @unique
   title String
-  productType String
   imageUrl String?
-  images Json?
-  price Decimal @db.Decimal(10, 2) // 基础单价（元），对应 variants[0].price
+  price Decimal @db.Decimal(10, 2) // 基础单价（元）
   stock Int @default(0)            // 真实库存
-  energy_tags Json?                // 能量标签（用于 AI 匹配），如 ["情绪","智慧"]
+  /// 大分类（如主珠/配珠等，可与工作台 category 对应）
+  majorCategory String?
+  /// 性别（展示/筛选）
+  productGender String?
+  /// 色系（支持 #RRGGBB 或文字）
+  colorSeries String?
+  /// 质感
+  texture String?
+  /// 深度能量科普
+  energyScience String? @db.LongText
   diameter String?
   weight String?
   createdAt DateTime @default(now())

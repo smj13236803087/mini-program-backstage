@@ -23,6 +23,7 @@ import {
   Typography,
   message,
 } from 'antd'
+import { braceletItemFromProductRow, type ProductRowLite } from '@/lib/product-display'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -49,17 +50,9 @@ type PlazaPostFull = PlazaListRow & {
   snapshot: unknown
 }
 
-type ProductRow = {
-  id: string
-  title: string
-  productType: string
-  price: any
-  diameter: string | null
-  weight: string | null
+type ProductRow = ProductRowLite & {
   stock: number
   imageUrl: string | null
-  images: any
-  energy_tags: any
 }
 
 export default function DashboardPlazaPage() {
@@ -259,21 +252,7 @@ export default function DashboardPlazaPage() {
     }
 
     // 复用作品集添加时的 items 结构（后续由后端生成 PlazaPost 快照）
-    const items: any[] = sequence.map((p, idx) => {
-      const meta0 = p?.images?.[0]?.meta || {}
-      return {
-        id: `${p.id}_${idx}`,
-        productId: p.id,
-        name: p.title,
-        price: Number(p.price || 0),
-        color: meta0.color || '#e5e7eb',
-        size: meta0.size || p.diameter || '--',
-        diameter: p.diameter || null,
-        weight: p.weight || null,
-        energy_tags: Array.isArray(p.energy_tags) ? p.energy_tags : [],
-        productType: p.productType,
-      }
-    })
+    const items: any[] = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
 
     setAddSaving(true)
     try {
@@ -351,25 +330,22 @@ export default function DashboardPlazaPage() {
 
       const snapItems = Array.isArray(snap.items) ? snap.items : []
       setSequence(
-        snapItems.map((it: any, idx: number) => ({
-          id: String(it.productId ?? it.id ?? `${idx}`),
-          title: String(it.name ?? it.title ?? `珠子${idx + 1}`),
-          productType: String(it.productType ?? ''),
-          price: it.price ?? 0,
-          diameter: it.diameter ?? it.size ?? null,
-          weight: it.weight ?? null,
-          stock: 0,
-          imageUrl: it.imageUrl ?? null,
-          images: [
-            {
-              meta: {
-                color: it.color ?? it?.images?.[0]?.meta?.color ?? '#e5e7eb',
-                size: it.size ?? it.diameter ?? '--',
-              },
-            },
-          ],
-          energy_tags: Array.isArray(it.energy_tags) ? it.energy_tags : [],
-        }))
+        snapItems.map((it: any, idx: number) => {
+          const rawId = String(it.productId ?? it.id ?? `${idx}`)
+          const baseId = rawId.replace(/_\d+$/, '')
+          return {
+            id: baseId,
+            materialCode: it.materialCode ?? null,
+            majorCategory: it.majorCategory ?? null,
+            colorSeries: typeof it.color === 'string' ? it.color : null,
+            title: String(it.name ?? it.title ?? `珠子${idx + 1}`),
+            price: it.price ?? 0,
+            diameter: typeof it.diameter === 'string' ? it.diameter : it.size ?? null,
+            weight: it.weight ?? null,
+            stock: 0,
+            imageUrl: it.imageUrl ?? null,
+          }
+        })
       )
 
       setProductSearchQ('')
@@ -410,21 +386,7 @@ export default function DashboardPlazaPage() {
       return
     }
 
-    const items: any[] = sequence.map((p, idx) => {
-      const meta0 = p?.images?.[0]?.meta || {}
-      return {
-        id: `${p.id}_${idx}`,
-        productId: p.id,
-        name: p.title,
-        price: Number(p.price || 0),
-        color: meta0.color || '#e5e7eb',
-        size: meta0.size || p.diameter || '--',
-        diameter: p.diameter || null,
-        weight: p.weight || null,
-        energy_tags: Array.isArray(p.energy_tags) ? p.energy_tags : [],
-        productType: p.productType,
-      }
-    })
+    const items: any[] = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
 
     setEditSaving(true)
     try {
@@ -683,7 +645,7 @@ export default function DashboardPlazaPage() {
 
             <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
               <Input
-                placeholder="搜索商品（title / productType / diameter）"
+                placeholder="搜索商品（title / 物料编号 / diameter）"
                 value={productSearchQ}
                 onChange={(e) => setProductSearchQ(e.target.value)}
                 onPressEnter={() => void loadProductsList(productSearchQ)}
@@ -709,7 +671,7 @@ export default function DashboardPlazaPage() {
                 allowClear
                 value={selectedProductId || undefined}
                 options={products.map((p) => ({
-                  label: `${p.title} · ${p.diameter || '-'} · ¥${String(p.price)}`,
+                  label: `${p.title} · ${p.materialCode || p.diameter || '-'} · ¥${String(p.price)}`,
                   value: p.id,
                 }))}
                 onChange={(v) => setSelectedProductId(v ? String(v) : '')}
@@ -802,21 +764,7 @@ export default function DashboardPlazaPage() {
                 readOnly
                 value={(() => {
                   try {
-                    const items = sequence.map((p, idx) => {
-                      const meta0 = p?.images?.[0]?.meta || {}
-                      return {
-                        id: `${p.id}_${idx}`,
-                        productId: p.id,
-                        name: p.title,
-                        price: Number(p.price || 0),
-                        color: meta0.color || '#e5e7eb',
-                        size: meta0.size || p.diameter || '--',
-                        diameter: p.diameter || null,
-                        weight: p.weight || null,
-                        energy_tags: Array.isArray(p.energy_tags) ? p.energy_tags : [],
-                        productType: p.productType,
-                      }
-                    })
+                    const items = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
                     return JSON.stringify(items, null, 2)
                   } catch {
                     return ''
@@ -922,7 +870,7 @@ export default function DashboardPlazaPage() {
 
               <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
                 <Input
-                  placeholder="搜索商品（title / productType / diameter）"
+                  placeholder="搜索商品（title / 物料编号 / diameter）"
                   value={productSearchQ}
                   onChange={(e) => setProductSearchQ(e.target.value)}
                   onPressEnter={() => void loadProductsList(productSearchQ)}
@@ -946,7 +894,7 @@ export default function DashboardPlazaPage() {
                   allowClear
                   value={selectedProductId || undefined}
                   options={products.map((p) => ({
-                    label: `${p.title} · ${p.diameter || '-'} · ¥${String(p.price)}`,
+                    label: `${p.title} · ${p.materialCode || p.diameter || '-'} · ¥${String(p.price)}`,
                     value: p.id,
                   }))}
                   onChange={(v) => setSelectedProductId(v ? String(v) : '')}
@@ -1035,21 +983,7 @@ export default function DashboardPlazaPage() {
                   readOnly
                   value={(() => {
                     try {
-                      const items = sequence.map((p, idx) => {
-                        const meta0 = p?.images?.[0]?.meta || {}
-                        return {
-                          id: `${p.id}_${idx}`,
-                          productId: p.id,
-                          name: p.title,
-                          price: Number(p.price || 0),
-                          color: meta0.color || '#e5e7eb',
-                          size: meta0.size || p.diameter || '--',
-                          diameter: p.diameter || null,
-                          weight: p.weight || null,
-                          energy_tags: Array.isArray(p.energy_tags) ? p.energy_tags : [],
-                          productType: p.productType,
-                        }
-                      })
+                      const items = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
                       return JSON.stringify(items, null, 2)
                     } catch {
                       return ''

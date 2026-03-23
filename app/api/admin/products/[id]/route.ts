@@ -13,12 +13,15 @@ export async function PATCH(
   const body = (await req.json().catch(() => null)) as
     | {
         title?: string
-        productType?: string
+        materialCode?: string | null
         price?: number | string
         stock?: number | string
         imageUrl?: string | null
-        images?: any
-        energy_tags?: any
+        majorCategory?: string | null
+        productGender?: string | null
+        colorSeries?: string | null
+        texture?: string | null
+        energyScience?: string | null
         diameter?: string | null
         weight?: string | null
       }
@@ -38,10 +41,9 @@ export async function PATCH(
     if (!v) return NextResponse.json({ error: 'title 不能为空' }, { status: 400 })
     data.title = v
   }
-  if (body.productType !== undefined) {
-    const v = body.productType.trim()
-    if (!v) return NextResponse.json({ error: 'productType 不能为空' }, { status: 400 })
-    data.productType = v
+  if (body.materialCode !== undefined) {
+    data.materialCode =
+      body.materialCode === null ? null : String(body.materialCode).trim() || null
   }
   if (body.price !== undefined) {
     const n = typeof body.price === 'string' ? Number(body.price) : body.price
@@ -59,8 +61,11 @@ export async function PATCH(
   }
 
   if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl
-  if (body.images !== undefined) data.images = body.images
-  if (body.energy_tags !== undefined) data.energy_tags = body.energy_tags
+  if (body.majorCategory !== undefined) data.majorCategory = body.majorCategory?.trim() || null
+  if (body.productGender !== undefined) data.productGender = body.productGender?.trim() || null
+  if (body.colorSeries !== undefined) data.colorSeries = body.colorSeries?.trim() || null
+  if (body.texture !== undefined) data.texture = body.texture?.trim() || null
+  if (body.energyScience !== undefined) data.energyScience = body.energyScience?.trim() || null
   if (body.diameter !== undefined) data.diameter = body.diameter
   if (body.weight !== undefined) data.weight = body.weight
 
@@ -69,15 +74,18 @@ export async function PATCH(
     data,
     select: {
       id: true,
+      materialCode: true,
       title: true,
-      productType: true,
       price: true,
       diameter: true,
       weight: true,
       stock: true,
       imageUrl: true,
-      images: true,
-      energy_tags: true,
+      majorCategory: true,
+      productGender: true,
+      colorSeries: true,
+      texture: true,
+      energyScience: true,
       updatedAt: true,
     },
   })
@@ -100,4 +108,3 @@ export async function DELETE(
   await prisma.product.delete({ where: { id } })
   return NextResponse.json({ ok: true }, { status: 200 })
 }
-

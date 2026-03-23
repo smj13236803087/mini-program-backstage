@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import COS from 'cos-nodejs-sdk-v5'
 import { assertAdmin } from '@/lib/admin-auth'
 import { getUserIdFromToken } from '@/lib/security'
-
-const SecretId = process.env.COS_SECRET_ID
-const SecretKey = process.env.COS_SECRET_KEY
-const Bucket = process.env.COS_BUCKET
-const Region = process.env.COS_REGION || 'ap-guangzhou'
-
-function getCosObjectUrl(key: string): string {
-  if (!Bucket || !Region) return ''
-  return `https://${Bucket}.cos.${Region}.myqcloud.com/${key}`
-}
+import { uploadBufferToCos } from '@/lib/cos-upload'
 
 /**
  * 上传商品图片：接收 multipart/form-data 中的 file 字段，上传到腾讯云 COS，返回可访问的图片 URL
- * - 复用头像上传的 COS 上传方式
+ * - 复用 lib/cos-upload（与 Excel 导入脚本一致）
  * - 权限：后台登录态（session cookie）+ 管理员角色
  */
 export async function POST(req: NextRequest) {
   const denied = await assertAdmin(req)
   if (denied) return denied
-
-  if (!SecretId || !SecretKey || !Bucket) {
-    console.error('COS 未配置: COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET')
-    return NextResponse.json({ error: '服务未配置存储' }, { status: 500 })
-  }
 
   try {
     const formData = await req.formData()
@@ -55,25 +40,8 @@ export async function POST(req: NextRequest) {
     const userId = (token && getUserIdFromToken(token)) || 'admin'
     const key = `products/${userId}_${Date.now()}.${ext}`
 
-    const cos = new COS({ SecretId, SecretKey })
-
-    await new Promise<void>((resolve, reject) => {
-      cos.putObject(
-        {
-          Bucket,
-          Region: Region!,
-          Key: key,
-          Body: buffer,
-          ContentType: `image/${ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext}`,
-        },
-        (err) => {
-          if (err) reject(new Error(err.message || String(err)))
-          else resolve()
-        }
-      )
-    })
-
-    const url = getCosObjectUrl(key)
+    const contentType = `image/${ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext}`
+    const url = await uploadBufferToCos({ buffer, key, contentType })
     return NextResponse.json({ url }, { status: 200 })
   } catch (e) {
     console.error('商品图片上传失败:', e)
@@ -83,4 +51,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-

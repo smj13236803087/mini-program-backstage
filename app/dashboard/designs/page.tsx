@@ -10,6 +10,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons'
 import { Button, Input, Select, Space, Table, Typography } from 'antd'
+import { braceletItemFromProductRow, type ProductRowLite } from '@/lib/product-display'
 
 type UserRow = {
   id: string
@@ -33,16 +34,9 @@ type DesignRow = {
   updatedAt: string
 }
 
-type ProductRow = {
-  id: string
-  title: string
-  productType: string
-  price: any
-  diameter: string | null
-  weight: string | null
+type ProductRow = ProductRowLite & {
   stock: number
-  images: any
-  energy_tags?: any
+  imageUrl: string | null
 }
 
 export default function DashboardDesignsPage() {
@@ -474,22 +468,7 @@ export default function DashboardDesignsPage() {
 
   async function createDesign() {
     if (!selectedUser) return
-    const items: any[] = sequence.map((p, idx) => {
-      const meta0 = p?.images?.[0]?.meta || {}
-      return {
-        // 兼容小程序预览：id/name/price/color/size
-        id: `${p.id}_${idx}`,
-        productId: p.id,
-        name: p.title,
-        price: Number(p.price || 0),
-        color: meta0.color || '#e5e7eb',
-        size: meta0.size || p.diameter || '--',
-        diameter: p.diameter || null,
-        weight: p.weight || null,
-        energy_tags: p.energy_tags || [],
-        productType: p.productType,
-      }
-    })
+    const items: any[] = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
     if (!items.length) {
       alert('请先从下拉列表按顺序选择珠子，组成设计序列')
       return
@@ -700,7 +679,7 @@ export default function DashboardDesignsPage() {
                   ) : null}
 
                   <label className="mb-2 block text-xs text-zinc-700">
-                    搜索商品（title / productType / diameter）
+                    搜索商品（title / 物料编号 / diameter）
                     <input
                       className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
                       value={productQ}
@@ -717,7 +696,7 @@ export default function DashboardDesignsPage() {
                     >
                       {(products || []).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.title} · {p.diameter || '-'} · ¥{String(p.price)}
+                          {p.title} · {p.materialCode || p.diameter || '-'} · ¥{String(p.price)}
                         </option>
                       ))}
                     </select>
@@ -817,21 +796,7 @@ export default function DashboardDesignsPage() {
                       readOnly
                       value={(() => {
                         try {
-                          const items = sequence.map((p, idx) => {
-                            const meta0 = p?.images?.[0]?.meta || {}
-                            return {
-                              id: `${p.id}_${idx}`,
-                              productId: p.id,
-                              name: p.title,
-                              price: Number(p.price || 0),
-                              color: meta0.color || '#e5e7eb',
-                              size: meta0.size || p.diameter || '--',
-                              diameter: p.diameter || null,
-                              weight: p.weight || null,
-                              energy_tags: (p as any).energy_tags || [],
-                              productType: p.productType,
-                            }
-                          })
+                          const items = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
                           return JSON.stringify(items, null, 2)
                         } catch {
                           return ''

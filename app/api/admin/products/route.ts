@@ -20,34 +20,45 @@ function parseDayRange(input: string): { gte: Date; lt: Date } | null {
   return { gte: start, lt: end }
 }
 
+const CATEGORY_HINTS: Record<string, string[]> = {
+  main: ['main', '主'],
+  support: ['support', '配珠', '配'],
+  spacer: ['spacer', '隔'],
+  accessory: ['accessory', '配饰', '配件', '饰'],
+}
+
 export async function GET(req: NextRequest) {
   const denied = await assertAdmin(req)
   if (denied) return denied
 
   const sp = req.nextUrl.searchParams
   const q = sp.get('q')?.trim() || ''
-  const category = sp.get('category')?.trim() || '' // main/support/spacer/accessory
+  const category = sp.get('category')?.trim() || ''
   const field = sp.get('field')?.trim() || ''
-  const sort = sp.get('sort')?.trim() || '' // e.g. updatedAt:desc
+  const sort = sp.get('sort')?.trim() || ''
   const page = clampInt(sp.get('page'), 1, 1, 100000)
   const pageSize = clampInt(sp.get('pageSize'), 20, 1, 100)
 
-  const where: any = {}
+  const andParts: object[] = []
+
   if (q) {
     const dayRange = parseDayRange(q)
     if (!field || field === 'all') {
-      where.OR = [
-        { id: { contains: q } },
-        { title: { contains: q } },
-        { productType: { contains: q } },
-        { diameter: { contains: q } },
-        ...(dayRange
-          ? [
-              { createdAt: { gte: dayRange.gte, lt: dayRange.lt } },
-              { updatedAt: { gte: dayRange.gte, lt: dayRange.lt } },
-            ]
-          : []),
-      ]
+      andParts.push({
+        OR: [
+          { id: { contains: q } },
+          { title: { contains: q } },
+          { materialCode: { contains: q } },
+          { majorCategory: { contains: q } },
+          { diameter: { contains: q } },
+          ...(dayRange
+            ? [
+                { createdAt: { gte: dayRange.gte, lt: dayRange.lt } },
+                { updatedAt: { gte: dayRange.gte, lt: dayRange.lt } },
+              ]
+            : []),
+        ],
+      })
     } else if (field === 'createdAt' || field === 'updatedAt') {
       if (!dayRange) {
         return NextResponse.json(
@@ -55,38 +66,45 @@ export async function GET(req: NextRequest) {
           { status: 200 }
         )
       }
-      where[field] = { gte: dayRange.gte, lt: dayRange.lt }
+      andParts.push({ [field]: { gte: dayRange.gte, lt: dayRange.lt } })
     } else if (
       field === 'id' ||
       field === 'title' ||
-      field === 'productType' ||
+      field === 'materialCode' ||
+      field === 'majorCategory' ||
       field === 'diameter'
     ) {
-      where[field] = { contains: q }
+      andParts.push({ [field]: { contains: q } })
     } else {
-      where.OR = [
-        { id: { contains: q } },
-        { title: { contains: q } },
-        { productType: { contains: q } },
-        { diameter: { contains: q } },
-      ]
+      andParts.push({
+        OR: [
+          { id: { contains: q } },
+          { title: { contains: q } },
+          { materialCode: { contains: q } },
+          { majorCategory: { contains: q } },
+          { diameter: { contains: q } },
+        ],
+      })
     }
   }
 
   if (category) {
-    // seed-products.js: images[0].meta.category
-    where.images = {
-      path: '$[0].meta.category',
-      equals: category,
-    }
+    const hints = CATEGORY_HINTS[category] || [category]
+    andParts.push({
+      OR: hints.map((h) => ({ majorCategory: { contains: h } })),
+    })
   }
+
+  const where = andParts.length ? { AND: andParts } : {}
 
   const orderBy = (() => {
     const [k, o] = sort.split(':')
     const order = o === 'asc' ? 'asc' : o === 'desc' ? 'desc' : null
     if (!order) return { updatedAt: 'desc' as const }
     if (k === 'createdAt' || k === 'updatedAt') return { [k]: order } as any
-    if (k === 'title' || k === 'productType' || k === 'stock') return { [k]: order } as any
+    if (k === 'title' || k === 'materialCode' || k === 'stock' || k === 'majorCategory') {
+      return { [k]: order } as any
+    }
     return { updatedAt: 'desc' as const }
   })()
 
@@ -99,15 +117,18 @@ export async function GET(req: NextRequest) {
       take: pageSize,
       select: {
         id: true,
+        materialCode: true,
         title: true,
-        productType: true,
         price: true,
         diameter: true,
         weight: true,
         stock: true,
         imageUrl: true,
-        images: true,
-        energy_tags: true,
+        majorCategory: true,
+        productGender: true,
+        colorSeries: true,
+        texture: true,
+        energyScience: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -124,12 +145,15 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as
     | {
         title?: string
-        productType?: string
+        materialCode?: string | null
         price?: number | string
         stock?: number | string
         imageUrl?: string | null
-        images?: any
-        energy_tags?: any
+        majorCategory?: string | null
+        productGender?: string | null
+        colorSeries?: string | null
+        texture?: string | null
+        energyScience?: string | null
         diameter?: string | null
         weight?: string | null
       }
@@ -140,10 +164,7 @@ export async function POST(req: NextRequest) {
   }
 
   const title = (body.title || '').trim()
-  const productType = (body.productType || '').trim()
   if (!title) return NextResponse.json({ error: 'title 不能为空' }, { status: 400 })
-  if (!productType)
-    return NextResponse.json({ error: 'productType 不能为空' }, { status: 400 })
 
   const priceNum = typeof body.price === 'string' ? Number(body.price) : body.price
   if (typeof priceNum !== 'number' || Number.isNaN(priceNum) || priceNum < 0) {
@@ -156,33 +177,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'stock 不合法' }, { status: 400 })
   }
 
+  const materialCode =
+    body.materialCode === undefined || body.materialCode === null
+      ? null
+      : String(body.materialCode).trim() || null
+
   const created = await prisma.product.create({
     data: {
       title,
-      productType,
+      materialCode,
       price: String(priceNum.toFixed(2)),
       stock: stockNum,
       imageUrl: body.imageUrl || null,
-      images: body.images ?? null,
-      energy_tags: body.energy_tags ?? null,
+      majorCategory: body.majorCategory?.trim() || null,
+      productGender: body.productGender?.trim() || null,
+      colorSeries: body.colorSeries?.trim() || null,
+      texture: body.texture?.trim() || null,
+      energyScience: body.energyScience?.trim() || null,
       diameter: body.diameter ?? null,
       weight: body.weight ?? null,
     },
     select: {
       id: true,
+      materialCode: true,
       title: true,
-      productType: true,
       price: true,
       diameter: true,
       weight: true,
       stock: true,
       imageUrl: true,
-      images: true,
-      energy_tags: true,
+      majorCategory: true,
+      productGender: true,
+      colorSeries: true,
+      texture: true,
+      energyScience: true,
       updatedAt: true,
     },
   })
 
   return NextResponse.json({ product: created }, { status: 200 })
 }
-
