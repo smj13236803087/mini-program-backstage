@@ -36,6 +36,10 @@ function parseDayRange(input: string): { gte: Date; lt: Date } | null {
   return { gte: start, lt: end }
 }
 
+function isPrismaRole(input: string): input is 'USER' | 'ADMIN' | 'SUPER_ADMIN' {
+  return input === 'USER' || input === 'ADMIN' || input === 'SUPER_ADMIN'
+}
+
 export async function GET(req: NextRequest) {
   const denied = await assertAdmin(req)
   if (denied) return denied
@@ -50,13 +54,15 @@ export async function GET(req: NextRequest) {
   const where: any = {}
   if (q) {
     const dayRange = parseDayRange(q)
+    const roleQuery = q.toUpperCase()
+    const roleFilter = isPrismaRole(roleQuery) ? { role: { equals: roleQuery } } : null
     if (!field || field === 'all') {
       where.OR = [
         { id: { contains: q } },
         { weixin_openid: { contains: q } },
         { email: { contains: q } },
         { nickname: { contains: q } },
-        { role: { equals: q.toUpperCase() } },
+        ...(roleFilter ? [roleFilter] : []),
         ...(dayRange
           ? [
               { createdAt: { gte: dayRange.gte, lt: dayRange.lt } },
@@ -80,14 +86,20 @@ export async function GET(req: NextRequest) {
     ) {
       where[field] = { contains: q }
     } else if (field === 'role') {
-      where.role = { equals: q.toUpperCase() }
+      if (!roleFilter) {
+        return NextResponse.json(
+          { page, pageSize, total: 0, users: [] },
+          { status: 200 }
+        )
+      }
+      where.role = roleFilter.role
     } else {
       where.OR = [
         { id: { contains: q } },
         { weixin_openid: { contains: q } },
         { email: { contains: q } },
         { nickname: { contains: q } },
-        { role: { equals: q.toUpperCase() } },
+        ...(roleFilter ? [roleFilter] : []),
       ]
     }
   }

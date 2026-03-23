@@ -46,8 +46,25 @@ model User {
   defaultAddress   Address?  @relation("DefaultAddress", fields: [defaultAddressId], references: [id])
   carts Cart[]
   orders Order[]
+  plazaPosts PlazaPost[]
 
   @@map("users")
+}
+
+/// 灵感广场：用户开启「共创分享」后发布的配方快照（一条作品对应一条广场记录，重复发布则更新）
+model PlazaPost {
+  id               String   @id @default(cuid())
+  braceletDesignId String   @unique
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 发布时的完整设计快照（含 items、手围、总价等），珠子已富化 imageUrl
+  snapshot         Json
+  adoptCount       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@map("plaza_posts")
 }
 
 enum Role {

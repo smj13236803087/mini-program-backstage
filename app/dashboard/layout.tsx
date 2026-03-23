@@ -8,6 +8,7 @@ import {
   LogoutOutlined,
   UserOutlined,
   AppstoreOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -77,6 +78,7 @@ export default function DashboardLayout({
     if (pathname.startsWith('/dashboard/products')) return 'products'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
     if (pathname.startsWith('/dashboard/users')) return 'users'
+    if (pathname.startsWith('/dashboard/plaza')) return 'plaza'
     return 'dashboard'
   })()
 
@@ -150,6 +152,11 @@ export default function DashboardLayout({
               key: 'designs',
               icon: <AppstoreOutlined />,
               label: <Link href="/dashboard/designs">作品集管理</Link>,
+            },
+            {
+              key: 'plaza',
+              icon: <GlobalOutlined />,
+              label: <Link href="/dashboard/plaza">灵感广场</Link>,
             },
           ]}
         />
