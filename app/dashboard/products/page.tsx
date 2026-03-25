@@ -53,7 +53,6 @@ export default function DashboardProductsPage() {
   const [oldSearchValue, setOldSearchValue] = useState('')
   const [hasSearch, setHasSearch] = useState(false)
 
-  const [category, setCategory] = useState('')
   const [isSort, setIsSort] = useState(false)
   const [sortConfig, setSortConfig] = useState<{
     key: string
@@ -114,7 +113,6 @@ export default function DashboardProductsPage() {
     const field = (hasSearch ? newSearchType : oldSearchType).trim()
     if (q) sp.set('q', q)
     if (field && field !== 'all') sp.set('field', field)
-    if (category.trim()) sp.set('category', category.trim())
     if (sortConfig.key && sortConfig.order) sp.set('sort', `${sortConfig.key}:${sortConfig.order}`)
     sp.set('page', String(pagination.current))
     sp.set('pageSize', String(pagination.pageSize))
@@ -125,7 +123,6 @@ export default function DashboardProductsPage() {
     oldSearchValue,
     newSearchType,
     oldSearchType,
-    category,
     sortConfig.key,
     sortConfig.order,
     pagination.current,
@@ -443,25 +440,6 @@ export default function DashboardProductsPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Space>
-          <span style={{ color: '#475569' }}>分类</span>
-          <Select
-            style={{ width: 200 }}
-            value={category}
-            onChange={(v) => {
-              setPagination((p) => ({ ...p, current: 1 }))
-              setCategory(v)
-            }}
-            options={[
-              { label: '全部', value: '' },
-              { label: '主珠（main）', value: 'main' },
-              { label: '配珠（support）', value: 'support' },
-              { label: '隔珠（spacer）', value: 'spacer' },
-              { label: '配饰（accessory）', value: 'accessory' },
-            ]}
-          />
-        </Space>
-
         <Space.Compact style={{ width: 480 }}>
           <Select value={newSearchType} onChange={setNewSearchType} style={{ width: 170 }} options={searchOptions} />
           <Input

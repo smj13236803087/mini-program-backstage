@@ -20,20 +20,12 @@ function parseDayRange(input: string): { gte: Date; lt: Date } | null {
   return { gte: start, lt: end }
 }
 
-const CATEGORY_HINTS: Record<string, string[]> = {
-  main: ['main', '主'],
-  support: ['support', '配珠', '配'],
-  spacer: ['spacer', '隔'],
-  accessory: ['accessory', '配饰', '配件', '饰'],
-}
-
 export async function GET(req: NextRequest) {
   const denied = await assertAdmin(req)
   if (denied) return denied
 
   const sp = req.nextUrl.searchParams
   const q = sp.get('q')?.trim() || ''
-  const category = sp.get('category')?.trim() || ''
   const field = sp.get('field')?.trim() || ''
   const sort = sp.get('sort')?.trim() || ''
   const page = clampInt(sp.get('page'), 1, 1, 100000)
@@ -86,13 +78,6 @@ export async function GET(req: NextRequest) {
         ],
       })
     }
-  }
-
-  if (category) {
-    const hints = CATEGORY_HINTS[category] || [category]
-    andParts.push({
-      OR: hints.map((h) => ({ majorCategory: { contains: h } })),
-    })
   }
 
   const where = andParts.length ? { AND: andParts } : {}
