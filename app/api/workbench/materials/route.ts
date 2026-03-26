@@ -6,6 +6,11 @@ import { productDisplayColor } from '@/lib/product-display'
  * 工作台：材料/矿石列表
  * 给 miniapp 的 diy-workbench 使用：GET /api/workbench/materials
  */
+// Next.js 生产环境可能会缓存 GET Route Handler 的结果；
+// 这里显式禁用缓存，避免后台改了商品图片但小程序一直拿到旧数据，直到重新部署才刷新。
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
@@ -44,12 +49,25 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({ errno: 0, errmsg: '', data: { materials } }, { status: 200 })
+    return NextResponse.json(
+      { errno: 0, errmsg: '', data: { materials } },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        },
+      }
+    )
   } catch (error) {
     console.error('workbench materials failed:', error)
     return NextResponse.json(
       { errno: 500, errmsg: 'workbench materials failed', data: null, detail: String(error) },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        },
+      }
     )
   }
 }
