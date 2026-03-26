@@ -107,6 +107,13 @@ export default function DashboardProductsPage() {
       }
     : emptyFormValues
 
+  // AntD Form 的 `initialValues` 只在首次挂载时生效；
+  // 这里在每次打开 Modal/切换编辑对象时强制同步表单字段，避免生产环境出现“沿用上一次编辑内容”的问题。
+  useEffect(() => {
+    if (!modalOpen) return
+    form.setFieldsValue(formInitialValues)
+  }, [modalOpen, editing])
+
   const queryKey = useMemo(() => {
     const sp = new URLSearchParams()
     const q = (hasSearch ? newSearchValue : oldSearchValue).trim()
