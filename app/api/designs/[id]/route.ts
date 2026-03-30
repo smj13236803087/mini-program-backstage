@@ -129,6 +129,9 @@ export async function DELETE(
   }
 
   try {
+    await prisma.plazaPost.deleteMany({
+      where: { braceletDesignId: params.id, userId },
+    })
     await prisma.braceletDesign.delete({
       where: { id: params.id, userId },
     })
