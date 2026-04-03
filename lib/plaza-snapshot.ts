@@ -10,10 +10,22 @@ type DesignLike = {
   wearingStyle: string | null
 }
 
+export type PlazaSnapshotMeta = {
+  recipeName?: string
+  recipePhilosophy?: string
+  recipeTags?: string[]
+}
+
 /** 与小程序发布广场时一致的默认快照结构 */
-export async function buildDefaultPlazaSnapshot(design: DesignLike) {
+export async function buildDefaultPlazaSnapshot(design: DesignLike, meta?: PlazaSnapshotMeta) {
   const rawItems = Array.isArray(design.items) ? design.items : []
   const items = await enrichBraceletItemsImageUrl(rawItems)
+
+  const defaultTitle = `共创配方 · ${items.length}颗`
+  const name = meta?.recipeName?.trim()
+  const philosophy = meta?.recipePhilosophy?.trim()
+  const defaultStory =
+    '来自灵感广场的共创分享，将个人疗愈配方分享给同频的人。每一颗晶石都承载着转化与平衡的意图。'
 
   return {
     sourceDesignId: design.id,
@@ -23,10 +35,9 @@ export async function buildDefaultPlazaSnapshot(design: DesignLike) {
     averageDiameter: design.averageDiameter ?? null,
     wristSize: design.wristSize ?? null,
     wearingStyle: design.wearingStyle ?? 'single',
-    title: `共创配方 · ${items.length}颗`,
-    story:
-      '来自灵感广场的共创分享，将个人疗愈配方分享给同频的人。每一颗晶石都承载着转化与平衡的意图。',
-    tags: [] as string[],
+    title: name && name.length > 0 ? name : defaultTitle,
+    story: philosophy && philosophy.length > 0 ? philosophy : defaultStory,
+    tags: Array.isArray(meta?.recipeTags) ? meta.recipeTags : ([] as string[]),
   }
 }
 

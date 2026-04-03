@@ -68,6 +68,12 @@ model PlazaPost {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// 发布时的完整设计快照（含 items、手围、总价等），珠子已富化 imageUrl
   snapshot         Json
+  /// 用户命名（广场标题优先；与 snapshot.title 同步写入）
+  recipeName       String?  @db.VarChar(120)
+  /// 配方理念 / 创作说明
+  recipePhilosophy String?  @db.Text
+  /// 标签 string[] JSON，仅允许预设标签
+  recipeTags       Json?
   adoptCount       Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

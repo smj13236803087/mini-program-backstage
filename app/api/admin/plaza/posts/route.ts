@@ -51,6 +51,9 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         updatedAt: true,
         snapshot: true,
+        recipeName: true,
+        recipePhilosophy: true,
+        recipeTags: true,
         user: {
           select: {
             id: true,
@@ -66,7 +69,8 @@ export async function GET(req: NextRequest) {
   const posts = rows.map((r) => {
     const snap = r.snapshot as Record<string, unknown> | null
     const title =
-      snap && typeof snap.title === 'string' ? snap.title : '—'
+      (r.recipeName && String(r.recipeName).trim()) ||
+      (snap && typeof snap.title === 'string' ? snap.title : '—')
     return {
       id: r.id,
       braceletDesignId: r.braceletDesignId,

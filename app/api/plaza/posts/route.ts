@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/security'
+import { mergePlazaSnapshotForApi } from '@/lib/plaza-display'
+import { sanitizePlazaRecipeTags } from '@/lib/plaza-recipe-tags'
 import { buildDefaultPlazaSnapshot } from '@/lib/plaza-snapshot'
 
 function getTokenFromReq(req: NextRequest): string | null {
@@ -49,6 +52,9 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         updatedAt: true,
         snapshot: true,
+        recipeName: true,
+        recipePhilosophy: true,
+        recipeTags: true,
         user: {
           select: {
             id: true,
@@ -66,7 +72,7 @@ export async function GET(req: NextRequest) {
     adoptCount: r.adoptCount,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
-    snapshot: r.snapshot,
+    snapshot: mergePlazaSnapshotForApi(r),
     author: {
       id: r.user.id,
       nickname: r.user.nickname || '微信用户',
@@ -84,12 +90,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ errno: 401, errmsg: '未登录', data: null }, { status: 200 })
   }
 
-  const body = (await req.json().catch(() => null)) as null | { braceletDesignId?: unknown }
+  const body = (await req.json().catch(() => null)) as null | {
+    braceletDesignId?: unknown
+    recipeName?: unknown
+    recipePhilosophy?: unknown
+    recipeTags?: unknown
+  }
   const braceletDesignId =
     typeof body?.braceletDesignId === 'string' ? body.braceletDesignId.trim() : ''
   if (!braceletDesignId) {
     return NextResponse.json({ errno: 400, errmsg: '缺少 braceletDesignId', data: null }, { status: 200 })
   }
+
+  const recipeName = typeof body?.recipeName === 'string' ? body.recipeName.trim() : ''
+  if (!recipeName) {
+    return NextResponse.json({ errno: 400, errmsg: '请填写配方名称', data: null }, { status: 200 })
+  }
+  if (recipeName.length > 120) {
+    return NextResponse.json({ errno: 400, errmsg: '配方名称请勿超过 120 字', data: null }, { status: 200 })
+  }
+
+  const philosophyRaw = typeof body?.recipePhilosophy === 'string' ? body.recipePhilosophy.trim() : ''
+  if (philosophyRaw.length > 2000) {
+    return NextResponse.json({ errno: 400, errmsg: '配方理念请勿超过 2000 字', data: null }, { status: 200 })
+  }
+  const recipePhilosophy = philosophyRaw.length > 0 ? philosophyRaw : null
+  const recipeTags = sanitizePlazaRecipeTags(body?.recipeTags, 8)
 
   const design = await prisma.braceletDesign.findFirst({
     where: { id: braceletDesignId, userId },
@@ -98,17 +124,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ errno: 404, errmsg: '作品不存在或无权操作', data: null }, { status: 200 })
   }
 
-  const snapshot = await buildDefaultPlazaSnapshot(design)
+  const snapshot = await buildDefaultPlazaSnapshot(design, {
+    recipeName,
+    recipePhilosophy: recipePhilosophy ?? undefined,
+    recipeTags,
+  })
+
+  const tagsJson: Prisma.InputJsonValue | typeof Prisma.DbNull =
+    recipeTags.length > 0 ? (recipeTags as unknown as Prisma.InputJsonValue) : Prisma.DbNull
 
   const post = await prisma.plazaPost.upsert({
     where: { braceletDesignId },
     create: {
       braceletDesignId,
       userId,
+      recipeName,
+      recipePhilosophy,
+      recipeTags: tagsJson,
       snapshot: snapshot as any,
     },
     update: {
       snapshot: snapshot as any,
+      recipeName,
+      recipePhilosophy,
+      recipeTags: tagsJson,
     },
     select: {
       id: true,

@@ -21,6 +21,9 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
       snapshot: true,
+      recipeName: true,
+      recipePhilosophy: true,
+      recipeTags: true,
       user: {
         select: {
           id: true,
@@ -78,6 +81,9 @@ export async function PATCH(
     }
     data.userId = design.userId
     data.snapshot = await buildDefaultPlazaSnapshot(design)
+    data.recipeName = null
+    data.recipePhilosophy = null
+    data.recipeTags = null
   } else {
     const wantsResync = body.resyncFromDesign === true
     const wantsSnapshot = body.snapshot !== undefined && body.snapshot !== null
@@ -109,6 +115,9 @@ export async function PATCH(
 
         if (!wantsSnapshot && !wantsResync) {
           data.snapshot = await buildDefaultPlazaSnapshot(design)
+          data.recipeName = null
+          data.recipePhilosophy = null
+          data.recipeTags = null
         }
       }
     }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { mergePlazaSnapshotForApi } from '@/lib/plaza-display'
 
 export async function GET(
   _req: NextRequest,
@@ -19,6 +20,9 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
       snapshot: true,
+      recipeName: true,
+      recipePhilosophy: true,
+      recipeTags: true,
       user: {
         select: {
           id: true,
@@ -44,7 +48,7 @@ export async function GET(
           adoptCount: row.adoptCount,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
-          snapshot: row.snapshot,
+          snapshot: mergePlazaSnapshotForApi(row),
           author: {
             id: row.user.id,
             nickname: row.user.nickname || '微信用户',
