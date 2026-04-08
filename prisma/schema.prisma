@@ -17,7 +17,7 @@ model Product {
   title String
   imageUrl String?
   price Decimal @db.Decimal(10, 2) // 基础单价（元）
-  stock Int @default(0)            // 真实库存
+  inventory Inventory?
   /// 大分类（如主珠/配珠等，可与工作台 category 对应）
   majorCategory String?
   /// 性别（展示/筛选）
@@ -46,7 +46,55 @@ model Product {
   weight String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// 库存变动流水（一个商品多条）
+  inventoryLogs InventoryLog[]
 }
+
+model Inventory {
+  id String @id @default(cuid())
+
+  productId String @unique
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// 当前库存
+  quantity Int @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+
+
+model InventoryLog {
+  id String @id @default(cuid())
+
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+
+  /// 变动类型：入库 / 销售 / 调整
+  type InventoryLogType
+
+  /// 本次变动数量（正负根据类型）
+  quantity Int
+
+  /// 变动前库存
+  beforeQty Int
+
+  /// 变动后库存
+  afterQty Int
+
+  /// 备注，可写“用户支付成功”、“人工盘点”等
+  remark String?
+
+  createdAt DateTime @default(now())
+}
+
+enum InventoryLogType {
+  PURCHASE   // 入库
+  SALE       // 销售
+  ADJUST     // 人工调整
+}
+
 
 model User {
   id             String    @id @default(cuid())

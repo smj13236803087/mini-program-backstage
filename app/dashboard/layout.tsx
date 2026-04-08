@@ -75,7 +75,9 @@ export default function DashboardLayout({
   const selectedKey = (() => {
     if (!pathname) return 'dashboard'
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
-    if (pathname.startsWith('/dashboard/products')) return 'products'
+    if (pathname.startsWith('/dashboard/products')) return 'products-list'
+    if (pathname.startsWith('/dashboard/inventory/logs')) return 'inventory-logs'
+    if (pathname.startsWith('/dashboard/inventory')) return 'inventory-list'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
     if (pathname.startsWith('/dashboard/users')) return 'users'
     if (pathname.startsWith('/dashboard/plaza')) return 'plaza'
@@ -144,9 +146,23 @@ export default function DashboardLayout({
               label: <Link href="/dashboard/orders">订单管理</Link>,
             },
             {
-              key: 'products',
+              key: 'products-group',
               icon: <AppstoreOutlined />,
-              label: <Link href="/dashboard/products">商品管理</Link>,
+              label: '商品管理',
+              children: [
+                {
+                  key: 'products-list',
+                  label: <Link href="/dashboard/products">商品列表</Link>,
+                },
+                {
+                  key: 'inventory-list',
+                  label: <Link href="/dashboard/inventory">库存列表</Link>,
+                },
+                {
+                  key: 'inventory-logs',
+                  label: <Link href="/dashboard/inventory/logs">库存流水</Link>,
+                },
+              ],
             },
             {
               key: 'designs',

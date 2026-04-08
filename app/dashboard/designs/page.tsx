@@ -35,7 +35,6 @@ type DesignRow = {
 }
 
 type ProductRow = ProductRowLite & {
-  stock: number
   imageUrl: string | null
 }
 

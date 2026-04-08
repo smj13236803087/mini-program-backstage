@@ -59,12 +59,13 @@ export async function PATCH(
     }
     data.price = String(n.toFixed(2))
   }
+  let stockNum: number | undefined
   if (body.stock !== undefined) {
     const n = typeof body.stock === 'string' ? Number(body.stock) : body.stock
     if (!Number.isInteger(n) || n < 0) {
       return NextResponse.json({ error: 'stock 不合法' }, { status: 400 })
     }
-    data.stock = n
+    stockNum = n
   }
 
   if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl
@@ -94,7 +95,7 @@ export async function PATCH(
       price: true,
       diameter: true,
       weight: true,
-      stock: true,
+      inventory: { select: { quantity: true } },
       imageUrl: true,
       majorCategory: true,
       productGender: true,
@@ -112,7 +113,24 @@ export async function PATCH(
     },
   })
 
-  return NextResponse.json({ product: updated }, { status: 200 })
+  if (stockNum !== undefined) {
+    await prisma.inventory.upsert({
+      where: { productId: id },
+      create: { productId: id, quantity: stockNum },
+      update: { quantity: stockNum },
+    })
+    ;(updated as any).inventory = { quantity: stockNum }
+  }
+
+  return NextResponse.json(
+    {
+      product: {
+        ...(updated as any),
+        stock: (updated as any).inventory?.quantity ?? 0,
+      },
+    },
+    { status: 200 }
+  )
 }
 
 export async function DELETE(

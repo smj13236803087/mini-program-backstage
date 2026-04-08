@@ -51,7 +51,6 @@ type PlazaPostFull = PlazaListRow & {
 }
 
 type ProductRow = ProductRowLite & {
-  stock: number
   imageUrl: string | null
 }
 
@@ -342,7 +341,6 @@ export default function DashboardPlazaPage() {
             price: it.price ?? 0,
             diameter: typeof it.diameter === 'string' ? it.diameter : it.size ?? null,
             weight: it.weight ?? null,
-            stock: 0,
             imageUrl: it.imageUrl ?? null,
           }
         })

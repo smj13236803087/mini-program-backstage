@@ -20,7 +20,6 @@ type ProductRow = {
   price: any
   diameter: string | null
   weight: string | null
-  stock: number
   imageUrl: string | null
   majorCategory: string | null
   productGender: string | null
@@ -42,7 +41,6 @@ type ProductFormValues = {
   materialCode?: string
   title: string
   price: number
-  stock: number
   diameter?: string
   weight?: string
   imageUrl?: string
@@ -93,7 +91,6 @@ export default function DashboardProductsPage() {
     materialCode: '',
     title: '',
     price: 0,
-    stock: 0,
     diameter: '',
     weight: '',
     imageUrl: '',
@@ -116,7 +113,6 @@ export default function DashboardProductsPage() {
         materialCode: editing.materialCode || '',
         title: editing.title || '',
         price: Number(editing.price || 0),
-        stock: Number(editing.stock || 0),
         diameter: editing.diameter || '',
         weight: editing.weight || '',
         imageUrl: editing.imageUrl || '',
@@ -205,7 +201,6 @@ export default function DashboardProductsPage() {
     const payload: any = {
       title: values.title.trim(),
       price: Number(values.price),
-      stock: Number(values.stock),
       diameter: (values.diameter || '').trim() || null,
       weight: (values.weight || '').trim() || null,
       imageUrl: (values.imageUrl || '').trim() || null,
@@ -392,7 +387,6 @@ export default function DashboardProductsPage() {
         ),
     },
     { title: '价格', dataIndex: 'price', key: 'price', width: 110, render: (v: any) => String(v) },
-    { title: '库存', dataIndex: 'stock', key: 'stock', width: 100 },
     {
       title: '规格',
       key: 'spec',
@@ -479,7 +473,7 @@ export default function DashboardProductsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          商品管理
+          商品列表
         </Typography.Title>
         <Space wrap>
           <Button type="primary" onClick={openCreate} icon={<PlusOutlined />}>
@@ -604,24 +598,13 @@ export default function DashboardProductsPage() {
           <Form.Item name="chakra" label="脉轮">
             <Input />
           </Form.Item>
-          <Space style={{ width: '100%' }} size={12}>
-            <Form.Item
-              name="price"
-              label="价格（元）"
-              rules={[{ required: true, message: '请输入价格' }]}
-              style={{ flex: 1, marginBottom: 0 }}
-            >
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              name="stock"
-              label="库存"
-              rules={[{ required: true, message: '请输入库存' }]}
-              style={{ flex: 1, marginBottom: 0 }}
-            >
-              <InputNumber min={0} precision={0} style={{ width: '100%' }} />
-            </Form.Item>
-          </Space>
+          <Form.Item
+            name="price"
+            label="价格（元）"
+            rules={[{ required: true, message: '请输入价格' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
           <Space style={{ width: '100%', marginTop: 12 }} size={12}>
             <Form.Item name="diameter" label="直径" style={{ flex: 1, marginBottom: 0 }}>
               <Input placeholder="例如：6mm" />

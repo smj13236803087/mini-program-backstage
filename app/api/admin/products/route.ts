@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     const order = o === 'asc' ? 'asc' : o === 'desc' ? 'desc' : null
     if (!order) return { updatedAt: 'desc' as const }
     if (k === 'createdAt' || k === 'updatedAt') return { [k]: order } as any
-    if (k === 'title' || k === 'materialCode' || k === 'stock' || k === 'majorCategory') {
+    if (k === 'title' || k === 'materialCode' || k === 'majorCategory') {
       return { [k]: order } as any
     }
     return { updatedAt: 'desc' as const }
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         price: true,
         diameter: true,
         weight: true,
-        stock: true,
+        inventory: { select: { quantity: true } },
         imageUrl: true,
         majorCategory: true,
         productGender: true,
@@ -127,7 +127,12 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  return NextResponse.json({ page, pageSize, total, products }, { status: 200 })
+  const productsWithStock = (products as any[]).map((p) => ({
+    ...p,
+    stock: p.inventory?.quantity ?? 0,
+  }))
+
+  return NextResponse.json({ page, pageSize, total, products: productsWithStock }, { status: 200 })
 }
 
 export async function POST(req: NextRequest) {
@@ -186,7 +191,6 @@ export async function POST(req: NextRequest) {
       title,
       materialCode,
       price: String(priceNum.toFixed(2)),
-      stock: stockNum,
       imageUrl: body.imageUrl || null,
       majorCategory: body.majorCategory?.trim() || null,
       productGender: body.productGender?.trim() || null,
@@ -202,6 +206,11 @@ export async function POST(req: NextRequest) {
       chakra: body.chakra?.trim() || null,
       diameter: body.diameter ?? null,
       weight: body.weight ?? null,
+      inventory: {
+        create: {
+          quantity: stockNum,
+        },
+      },
     },
     select: {
       id: true,
@@ -210,7 +219,7 @@ export async function POST(req: NextRequest) {
       price: true,
       diameter: true,
       weight: true,
-      stock: true,
+      inventory: { select: { quantity: true } },
       imageUrl: true,
       majorCategory: true,
       productGender: true,
@@ -228,5 +237,13 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  return NextResponse.json({ product: created }, { status: 200 })
+  return NextResponse.json(
+    {
+      product: {
+        ...(created as any),
+        stock: (created as any).inventory?.quantity ?? 0,
+      },
+    },
+    { status: 200 }
+  )
 }
