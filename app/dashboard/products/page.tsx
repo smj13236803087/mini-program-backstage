@@ -25,8 +25,15 @@ type ProductRow = {
   majorCategory: string | null
   productGender: string | null
   colorSeries: string | null
-  texture: string | null
-  energyScience: string | null
+  coreEnergyTag: string | null
+  mineVeinTrace: string | null
+  materialTrace: string | null
+  visualFeatures: string | null
+  classicSixDimensions: string | null
+  zodiac: string | null
+  fiveElements: string | null
+  constellation: string | null
+  chakra: string | null
   createdAt: string
   updatedAt: string
 }
@@ -42,8 +49,15 @@ type ProductFormValues = {
   majorCategory?: string
   productGender?: string
   colorSeries?: string
-  texture?: string
-  energyScience?: string
+  coreEnergyTag?: string
+  mineVeinTrace?: string
+  materialTrace?: string
+  visualFeatures?: string
+  classicSixDimensions?: string
+  zodiac?: string
+  fiveElements?: string
+  constellation?: string
+  chakra?: string
 }
 
 export default function DashboardProductsPage() {
@@ -86,8 +100,15 @@ export default function DashboardProductsPage() {
     majorCategory: '',
     productGender: '',
     colorSeries: '',
-    texture: '',
-    energyScience: '',
+    coreEnergyTag: '',
+    mineVeinTrace: '',
+    materialTrace: '',
+    visualFeatures: '',
+    classicSixDimensions: '',
+    zodiac: '',
+    fiveElements: '',
+    constellation: '',
+    chakra: '',
   }
 
   const formInitialValues: ProductFormValues = editing
@@ -102,8 +123,15 @@ export default function DashboardProductsPage() {
         majorCategory: editing.majorCategory || '',
         productGender: editing.productGender || '',
         colorSeries: editing.colorSeries || '',
-        texture: editing.texture || '',
-        energyScience: editing.energyScience || '',
+        coreEnergyTag: editing.coreEnergyTag || '',
+        mineVeinTrace: editing.mineVeinTrace || '',
+        materialTrace: editing.materialTrace || '',
+        visualFeatures: editing.visualFeatures || '',
+        classicSixDimensions: editing.classicSixDimensions || '',
+        zodiac: editing.zodiac || '',
+        fiveElements: editing.fiveElements || '',
+        constellation: editing.constellation || '',
+        chakra: editing.chakra || '',
       }
     : emptyFormValues
 
@@ -184,8 +212,15 @@ export default function DashboardProductsPage() {
       majorCategory: (values.majorCategory || '').trim() || null,
       productGender: (values.productGender || '').trim() || null,
       colorSeries: (values.colorSeries || '').trim() || null,
-      texture: (values.texture || '').trim() || null,
-      energyScience: (values.energyScience || '').trim() || null,
+      coreEnergyTag: (values.coreEnergyTag || '').trim() || null,
+      mineVeinTrace: (values.mineVeinTrace || '').trim() || null,
+      materialTrace: (values.materialTrace || '').trim() || null,
+      visualFeatures: (values.visualFeatures || '').trim() || null,
+      classicSixDimensions: (values.classicSixDimensions || '').trim() || null,
+      zodiac: (values.zodiac || '').trim() || null,
+      fiveElements: (values.fiveElements || '').trim() || null,
+      constellation: (values.constellation || '').trim() || null,
+      chakra: (values.chakra || '').trim() || null,
     }
     if (!editing) {
       payload.materialCode = (values.materialCode || '').trim() || null
@@ -341,13 +376,20 @@ export default function DashboardProductsPage() {
     { title: '大分类', dataIndex: 'majorCategory', key: 'majorCategory', width: 120 },
     { title: '性别', dataIndex: 'productGender', key: 'productGender', width: 100 },
     { title: '色系', dataIndex: 'colorSeries', key: 'colorSeries', width: 120 },
-    { title: '质感', dataIndex: 'texture', key: 'texture', width: 120 },
     {
-      title: '深度能量科普',
-      dataIndex: 'energyScience',
-      key: 'energyScience',
-      width: 280,
-      render: (v: string | null) => (v ? <span title={v}>{v.slice(0, 60)}{v.length > 60 ? '...' : ''}</span> : '-'),
+      title: '核心能量标签',
+      dataIndex: 'coreEnergyTag',
+      key: 'coreEnergyTag',
+      width: 200,
+      render: (v: string | null) =>
+        v ? (
+          <span title={v}>
+            {v.slice(0, 40)}
+            {v.length > 40 ? '...' : ''}
+          </span>
+        ) : (
+          '-'
+        ),
     },
     { title: '价格', dataIndex: 'price', key: 'price', width: 110, render: (v: any) => String(v) },
     { title: '库存', dataIndex: 'stock', key: 'stock', width: 100 },
@@ -532,10 +574,34 @@ export default function DashboardProductsPage() {
           <Form.Item name="productGender" label="性别">
             <Input />
           </Form.Item>
-          <Form.Item name="colorSeries" label="色系">
+          <Form.Item name="colorSeries" label="色系（含色系归属）">
+            <Input placeholder="#RRGGBB 或文字" />
+          </Form.Item>
+          <Form.Item name="coreEnergyTag" label="核心能量标签">
+            <Input.TextArea rows={2} placeholder="可填写标签或短说明" />
+          </Form.Item>
+          <Form.Item name="mineVeinTrace" label="矿脉溯源">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="materialTrace" label="材质溯源">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="visualFeatures" label="视觉特征">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="classicSixDimensions" label="经典六维">
+            <Input.TextArea rows={3} placeholder="可为 JSON 或长文本" />
+          </Form.Item>
+          <Form.Item name="zodiac" label="生肖">
+            <Input placeholder="如：鼠、牛 或多选说明" />
+          </Form.Item>
+          <Form.Item name="fiveElements" label="五行">
+            <Input placeholder="如：金、木" />
+          </Form.Item>
+          <Form.Item name="constellation" label="星座">
             <Input />
           </Form.Item>
-          <Form.Item name="texture" label="质感">
+          <Form.Item name="chakra" label="脉轮">
             <Input />
           </Form.Item>
           <Space style={{ width: '100%' }} size={12}>
@@ -601,9 +667,6 @@ export default function DashboardProductsPage() {
             </Space>
           </Form.Item>
 
-          <Form.Item name="energyScience" label="深度能量科普">
-            <Input.TextArea rows={4} placeholder="长文本" />
-          </Form.Item>
         </Form>
       </Modal>
     </div>

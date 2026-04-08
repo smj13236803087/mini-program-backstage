@@ -22,12 +22,26 @@ model Product {
   majorCategory String?
   /// 性别（展示/筛选）
   productGender String?
-  /// 色系（支持 #RRGGBB 或文字）
+  /// 色系 / 色系归属（支持 #RRGGBB 或文字）
   colorSeries String?
-  /// 质感
-  texture String?
-  /// 深度能量科普
-  energyScience String? @db.LongText
+  /// 核心能量标签
+  coreEnergyTag String? @db.Text
+  /// 矿脉溯源
+  mineVeinTrace String? @db.Text
+  /// 材质溯源
+  materialTrace String? @db.Text
+  /// 视觉特征
+  visualFeatures String? @db.Text
+  /// 经典六维（JSON 或长文本）
+  classicSixDimensions String? @db.Text
+  /// 生肖
+  zodiac String?
+  /// 五行
+  fiveElements String?
+  /// 星座
+  constellation String?
+  /// 脉轮
+  chakra String?
   diameter String?
   weight String?
   createdAt DateTime @default(now())

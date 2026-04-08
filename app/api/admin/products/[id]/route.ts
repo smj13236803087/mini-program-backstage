@@ -20,8 +20,15 @@ export async function PATCH(
         majorCategory?: string | null
         productGender?: string | null
         colorSeries?: string | null
-        texture?: string | null
-        energyScience?: string | null
+        coreEnergyTag?: string | null
+        mineVeinTrace?: string | null
+        materialTrace?: string | null
+        visualFeatures?: string | null
+        classicSixDimensions?: string | null
+        zodiac?: string | null
+        fiveElements?: string | null
+        constellation?: string | null
+        chakra?: string | null
         diameter?: string | null
         weight?: string | null
       }
@@ -64,8 +71,16 @@ export async function PATCH(
   if (body.majorCategory !== undefined) data.majorCategory = body.majorCategory?.trim() || null
   if (body.productGender !== undefined) data.productGender = body.productGender?.trim() || null
   if (body.colorSeries !== undefined) data.colorSeries = body.colorSeries?.trim() || null
-  if (body.texture !== undefined) data.texture = body.texture?.trim() || null
-  if (body.energyScience !== undefined) data.energyScience = body.energyScience?.trim() || null
+  if (body.coreEnergyTag !== undefined) data.coreEnergyTag = body.coreEnergyTag?.trim() || null
+  if (body.mineVeinTrace !== undefined) data.mineVeinTrace = body.mineVeinTrace?.trim() || null
+  if (body.materialTrace !== undefined) data.materialTrace = body.materialTrace?.trim() || null
+  if (body.visualFeatures !== undefined) data.visualFeatures = body.visualFeatures?.trim() || null
+  if (body.classicSixDimensions !== undefined)
+    data.classicSixDimensions = body.classicSixDimensions?.trim() || null
+  if (body.zodiac !== undefined) data.zodiac = body.zodiac?.trim() || null
+  if (body.fiveElements !== undefined) data.fiveElements = body.fiveElements?.trim() || null
+  if (body.constellation !== undefined) data.constellation = body.constellation?.trim() || null
+  if (body.chakra !== undefined) data.chakra = body.chakra?.trim() || null
   if (body.diameter !== undefined) data.diameter = body.diameter
   if (body.weight !== undefined) data.weight = body.weight
 
@@ -84,8 +99,15 @@ export async function PATCH(
       majorCategory: true,
       productGender: true,
       colorSeries: true,
-      texture: true,
-      energyScience: true,
+      coreEnergyTag: true,
+      mineVeinTrace: true,
+      materialTrace: true,
+      visualFeatures: true,
+      classicSixDimensions: true,
+      zodiac: true,
+      fiveElements: true,
+      constellation: true,
+      chakra: true,
       updatedAt: true,
     },
   })

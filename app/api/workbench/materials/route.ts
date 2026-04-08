@@ -24,7 +24,7 @@ export async function GET() {
         diameter: true,
         majorCategory: true,
         colorSeries: true,
-        energyScience: true,
+        coreEnergyTag: true,
       },
     })
 
@@ -45,7 +45,7 @@ export async function GET() {
         color,
         imageUrl: p.imageUrl || null,
         // 预留：前端可直接展示
-        energyScience: p.energyScience || null,
+        coreEnergyTag: p.coreEnergyTag || null,
       }
     })
 

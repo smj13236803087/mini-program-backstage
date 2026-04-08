@@ -112,8 +112,15 @@ export async function GET(req: NextRequest) {
         majorCategory: true,
         productGender: true,
         colorSeries: true,
-        texture: true,
-        energyScience: true,
+        coreEnergyTag: true,
+        mineVeinTrace: true,
+        materialTrace: true,
+        visualFeatures: true,
+        classicSixDimensions: true,
+        zodiac: true,
+        fiveElements: true,
+        constellation: true,
+        chakra: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -137,8 +144,15 @@ export async function POST(req: NextRequest) {
         majorCategory?: string | null
         productGender?: string | null
         colorSeries?: string | null
-        texture?: string | null
-        energyScience?: string | null
+        coreEnergyTag?: string | null
+        mineVeinTrace?: string | null
+        materialTrace?: string | null
+        visualFeatures?: string | null
+        classicSixDimensions?: string | null
+        zodiac?: string | null
+        fiveElements?: string | null
+        constellation?: string | null
+        chakra?: string | null
         diameter?: string | null
         weight?: string | null
       }
@@ -177,8 +191,15 @@ export async function POST(req: NextRequest) {
       majorCategory: body.majorCategory?.trim() || null,
       productGender: body.productGender?.trim() || null,
       colorSeries: body.colorSeries?.trim() || null,
-      texture: body.texture?.trim() || null,
-      energyScience: body.energyScience?.trim() || null,
+      coreEnergyTag: body.coreEnergyTag?.trim() || null,
+      mineVeinTrace: body.mineVeinTrace?.trim() || null,
+      materialTrace: body.materialTrace?.trim() || null,
+      visualFeatures: body.visualFeatures?.trim() || null,
+      classicSixDimensions: body.classicSixDimensions?.trim() || null,
+      zodiac: body.zodiac?.trim() || null,
+      fiveElements: body.fiveElements?.trim() || null,
+      constellation: body.constellation?.trim() || null,
+      chakra: body.chakra?.trim() || null,
       diameter: body.diameter ?? null,
       weight: body.weight ?? null,
     },
@@ -194,8 +215,15 @@ export async function POST(req: NextRequest) {
       majorCategory: true,
       productGender: true,
       colorSeries: true,
-      texture: true,
-      energyScience: true,
+      coreEnergyTag: true,
+      mineVeinTrace: true,
+      materialTrace: true,
+      visualFeatures: true,
+      classicSixDimensions: true,
+      zodiac: true,
+      fiveElements: true,
+      constellation: true,
+      chakra: true,
       updatedAt: true,
     },
   })
