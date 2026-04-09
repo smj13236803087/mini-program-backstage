@@ -386,17 +386,47 @@ export default function DashboardProductsPage() {
           '-'
         ),
     },
+    {
+      title: '矿脉溯源',
+      dataIndex: 'mineVeinTrace',
+      key: 'mineVeinTrace',
+      width: 220,
+      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
+    },
+    {
+      title: '材质溯源',
+      dataIndex: 'materialTrace',
+      key: 'materialTrace',
+      width: 220,
+      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
+    },
+    {
+      title: '视觉特征',
+      dataIndex: 'visualFeatures',
+      key: 'visualFeatures',
+      width: 220,
+      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
+    },
+    {
+      title: '经典六维',
+      dataIndex: 'classicSixDimensions',
+      key: 'classicSixDimensions',
+      width: 220,
+      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
+    },
+    { title: '生肖', dataIndex: 'zodiac', key: 'zodiac', width: 100 },
+    { title: '五行', dataIndex: 'fiveElements', key: 'fiveElements', width: 100 },
+    { title: '星座', dataIndex: 'constellation', key: 'constellation', width: 100 },
+    { title: '脉轮', dataIndex: 'chakra', key: 'chakra', width: 100 },
     { title: '价格', dataIndex: 'price', key: 'price', width: 110, render: (v: any) => String(v) },
     {
-      title: '规格',
-      key: 'spec',
-      width: 140,
-      render: (_: any, p: ProductRow) => (
-        <span>
-          {p.diameter || '-'} {p.weight ? `· ${p.weight}` : ''}
-        </span>
-      ),
+      title: '直径',
+      dataIndex: 'diameter',
+      key: 'diameter',
+      width: 120,
+      render: (v: string | null) => v || '-',
     },
+    { title: '重量', dataIndex: 'weight', key: 'weight', width: 120, render: (v: string | null) => v || '-' },
     {
       title: (
         <span

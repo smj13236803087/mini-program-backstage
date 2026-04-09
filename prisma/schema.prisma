@@ -269,6 +269,9 @@ model Order {
   payChannel  String? // wechat 等
   paidAt      DateTime?
 
+  /// 销售出库已完成（扣库存 + 写 SALE 流水），用于幂等
+  stockDeductedAt DateTime?
+
   /// 物流相关
   shippingCompany String?
   trackingNo      String?

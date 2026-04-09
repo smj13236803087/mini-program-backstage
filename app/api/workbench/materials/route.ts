@@ -25,6 +25,9 @@ export async function GET() {
         majorCategory: true,
         colorSeries: true,
         coreEnergyTag: true,
+        mineVeinTrace: true,
+        materialTrace: true,
+        visualFeatures: true,
       },
     })
 
@@ -46,6 +49,9 @@ export async function GET() {
         imageUrl: p.imageUrl || null,
         // 预留：前端可直接展示
         coreEnergyTag: p.coreEnergyTag || null,
+        mineVeinTrace: p.mineVeinTrace || null,
+        materialTrace: p.materialTrace || null,
+        visualFeatures: p.visualFeatures || null,
       }
     })
 

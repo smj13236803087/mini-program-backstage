@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { assertAdmin } from '@/lib/admin-auth'
+import { deductInventoryOnOrderPaid, OrderInventoryError } from '@/lib/order-sale-inventory'
 
 const ALLOWED_STATUS = new Set([
   'pending',
@@ -52,6 +53,15 @@ export async function PATCH(
   if (denied) return denied
 
   const { id } = await ctx.params
+
+  const existingOrder = await prisma.order.findUnique({
+    where: { id },
+    select: { payStatus: true },
+  })
+  if (!existingOrder) {
+    return NextResponse.json({ error: '订单不存在' }, { status: 404 })
+  }
+
   const body = (await req.json().catch(() => null)) as
     | {
         status?: string
@@ -141,16 +151,37 @@ export async function PATCH(
     }
   }
 
-  const updated = await prisma.order.update({
-    where: { id },
-    data,
-    include: {
-      user: { select: { id: true, nickname: true, phone: true, avatar: true } },
-      items: { orderBy: { createdAt: 'asc' } },
-    },
-  })
+  const becomingPaid =
+    body.payStatus === 'paid' && existingOrder.payStatus !== 'paid'
 
-  return NextResponse.json({ order: updated }, { status: 200 })
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id },
+        data,
+      })
+      if (becomingPaid) {
+        await deductInventoryOnOrderPaid(tx, id)
+      }
+      return tx.order.findUniqueOrThrow({
+        where: { id },
+        include: {
+          user: { select: { id: true, nickname: true, phone: true, avatar: true } },
+          items: { orderBy: { createdAt: 'asc' } },
+        },
+      })
+    })
+
+    return NextResponse.json({ order: updated }, { status: 200 })
+  } catch (e) {
+    if (e instanceof OrderInventoryError) {
+      if (e.code === 'INSUFFICIENT_STOCK') {
+        return NextResponse.json({ error: e.message }, { status: 409 })
+      }
+      return NextResponse.json({ error: e.message }, { status: 400 })
+    }
+    throw e
+  }
 }
 
 export async function DELETE(
