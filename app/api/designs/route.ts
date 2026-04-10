@@ -59,9 +59,9 @@ export async function GET(req: NextRequest) {
   if (productIds.size > 0) {
     const products = await prisma.product.findMany({
       where: { id: { in: Array.from(productIds) } },
-      select: { id: true, imageUrl: true },
+      select: { id: true, atlas: { select: { imageUrl: true } } },
     })
-    const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+    const imageMap = new Map(products.map((p) => [p.id, (p as any)?.atlas?.imageUrl || null] as const))
 
     for (const d of designs as any[]) {
       if (!Array.isArray(d.items)) continue

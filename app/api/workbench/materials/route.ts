@@ -13,48 +13,53 @@ export const revalidate = 0
 
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
+    const products = await (prisma as any).product.findMany({
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
         materialCode: true,
-        title: true,
-        imageUrl: true,
         price: true,
         diameter: true,
-        majorCategory: true,
-        colorSeries: true,
-        coreEnergyTag: true,
-        classicSixDimensions: true,
-        mineVeinTrace: true,
-        materialTrace: true,
-        visualFeatures: true,
+        atlas: {
+          select: {
+            title: true,
+            majorCategory: true,
+            imageUrl: true,
+            colorSeries: true,
+            coreEnergyTag: true,
+            classicSixDimensions: true,
+            mineVeinTrace: true,
+            materialTrace: true,
+            visualFeatures: true,
+          },
+        },
       },
     })
 
-    const materials = products.map((p) => {
-      const color = productDisplayColor(p)
+    const materials = (products as any[]).map((p: any) => {
+      const atlas = (p as any).atlas || null
+      const color = productDisplayColor(atlas || {})
       const size = (p.diameter || '').trim()
 
       // 小程序目前只用到 id/name/color/size（以及后续可能扩展 energy 标签）
       return {
         id: (p.materialCode && p.materialCode.trim()) || p.id,
-        name: p.title,
-        // 左侧 tab：直接展示商品表 majorCategory 原文（去重后由前端渲染）
-        category: (p.majorCategory || '未分类').trim(),
+        name: atlas?.title || '',
+        // 左侧 tab：与后台商品列表一致，使用关联图鉴的大分类
+        category: (atlas?.majorCategory || '未分类').trim(),
         energy: {},
         energyTag: { emoji: '✨', label: '' },
         price: Number(p.price || 0),
         size,
         color,
-        colorSeries: p.colorSeries || '',
-        imageUrl: p.imageUrl || null,
+        colorSeries: atlas?.colorSeries || '',
+        imageUrl: atlas?.imageUrl || null,
         // 预留：前端可直接展示
-        coreEnergyTag: p.coreEnergyTag || null,
-        classicSixDimensions: p.classicSixDimensions || null,
-        mineVeinTrace: p.mineVeinTrace || null,
-        materialTrace: p.materialTrace || null,
-        visualFeatures: p.visualFeatures || null,
+        coreEnergyTag: atlas?.coreEnergyTag || null,
+        classicSixDimensions: atlas?.classicSixDimensions || null,
+        mineVeinTrace: atlas?.mineVeinTrace || null,
+        materialTrace: atlas?.materialTrace || null,
+        visualFeatures: atlas?.visualFeatures || null,
       }
     })
 

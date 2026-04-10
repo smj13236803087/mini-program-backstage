@@ -22,11 +22,11 @@ export async function GET(req: NextRequest) {
   if (q) {
     if (!field || field === 'all') {
       where.OR = [
-        { product: { title: { contains: q } } },
+        { product: { atlas: { is: { title: { contains: q } } } } },
         { product: { materialCode: { contains: q } } },
       ]
     } else if (field === 'title') {
-      where.product = { title: { contains: q } }
+      where.product = { atlas: { is: { title: { contains: q } } } }
     } else if (field === 'materialCode') {
       where.product = { materialCode: { contains: q } }
     }
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
         product: {
           select: {
             id: true,
-            title: true,
             materialCode: true,
+            atlas: { select: { title: true } },
           },
         },
       },
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
   const inventories = items.map((it) => ({
     id: it.id,
     productId: it.product?.id ?? it.productId,
-    productTitle: it.product?.title ?? '',
+    productTitle: (it.product as any)?.atlas?.title ?? '',
     materialCode: it.product?.materialCode ?? null,
     quantity: it.quantity,
     updatedAt: it.updatedAt.toISOString(),
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, title: true, materialCode: true },
+    select: { id: true, materialCode: true, atlas: { select: { title: true } } },
   })
   if (!product) {
     return NextResponse.json({ error: '商品不存在' }, { status: 400 })
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       inventory: {
         id: inv.id,
         productId: product.id,
-        productTitle: product.title,
+        productTitle: (product as any)?.atlas?.title ?? '',
         materialCode: product.materialCode ?? null,
         quantity: inv.quantity,
         updatedAt: inv.updatedAt.toISOString(),

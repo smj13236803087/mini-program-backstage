@@ -10,20 +10,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
+/// 商品图鉴（按“物料名称”聚合的展示信息）
+model ProductAtlas {
   id String @id @default(cuid())
-  /// 物料编号（Excel 导入；工作台珠子稳定 id 优先用此字段）
-  materialCode String? @unique
+
+  /// 物料名称（图鉴主标题）
   title String
   imageUrl String?
-  price Decimal @db.Decimal(10, 2) // 基础单价（元）
-  inventory Inventory?
-  /// 大分类（如主珠/配珠等，可与工作台 category 对应）
+  /// 大分类（用于图鉴展示/筛选；商品 SKU 通过关联图鉴继承展示）
   majorCategory String?
-  /// 性别（展示/筛选）
-  productGender String?
   /// 色系 / 色系归属（支持 #RRGGBB 或文字）
   colorSeries String?
+
   /// 核心能量标签
   coreEnergyTag String? @db.Text
   /// 矿脉溯源
@@ -42,13 +40,41 @@ model Product {
   constellation String?
   /// 脉轮
   chakra String?
-  diameter String?
-  weight String?
+
+  products Product[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([title])
+  @@index([majorCategory])
+  @@unique([title, majorCategory])
+  @@map("product_atlas")
+}
+
+/// 商品 SKU（同一物料名称可有多种粒径/规格；此表只存价格/规格等可变信息）
+model Product {
+  id String @id @default(cuid())
+
+  /// 物料编号（Excel 导入；工作台珠子稳定 id 优先用此字段）
+  materialCode String? @unique
+
+  atlasId String?
+  atlas   ProductAtlas? @relation(fields: [atlasId], references: [id], onDelete: SetNull)
+
+  price Decimal @db.Decimal(10, 2) // 基础单价（元）
+  diameter String?
+  weight String?
+
+  inventory Inventory?
   /// 库存变动流水（一个商品多条）
   inventoryLogs InventoryLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([atlasId])
+  @@index([diameter])
 }
 
 model Inventory {

@@ -39,9 +39,9 @@ export async function GET(req: NextRequest) {
       andParts.push({
         OR: [
           { id: { contains: q } },
-          { title: { contains: q } },
+          { atlas: { is: { title: { contains: q } } } },
+          { atlas: { is: { majorCategory: { contains: q } } } },
           { materialCode: { contains: q } },
-          { majorCategory: { contains: q } },
           { diameter: { contains: q } },
           ...(dayRange
             ? [
@@ -66,14 +66,20 @@ export async function GET(req: NextRequest) {
       field === 'majorCategory' ||
       field === 'diameter'
     ) {
-      andParts.push({ [field]: { contains: q } })
+      if (field === 'title') {
+        andParts.push({ atlas: { is: { title: { contains: q } } } })
+      } else if (field === 'majorCategory') {
+        andParts.push({ atlas: { is: { majorCategory: { contains: q } } } })
+      } else {
+        andParts.push({ [field]: { contains: q } })
+      }
     } else {
       andParts.push({
         OR: [
           { id: { contains: q } },
-          { title: { contains: q } },
+          { atlas: { is: { title: { contains: q } } } },
+          { atlas: { is: { majorCategory: { contains: q } } } },
           { materialCode: { contains: q } },
-          { majorCategory: { contains: q } },
           { diameter: { contains: q } },
         ],
       })
@@ -87,9 +93,9 @@ export async function GET(req: NextRequest) {
     const order = o === 'asc' ? 'asc' : o === 'desc' ? 'desc' : null
     if (!order) return { updatedAt: 'desc' as const }
     if (k === 'createdAt' || k === 'updatedAt') return { [k]: order } as any
-    if (k === 'title' || k === 'materialCode' || k === 'majorCategory') {
-      return { [k]: order } as any
-    }
+    if (k === 'title') return { atlas: { title: order } } as any
+    if (k === 'materialCode') return { [k]: order } as any
+    if (k === 'majorCategory') return { atlas: { majorCategory: order } } as any
     return { updatedAt: 'desc' as const }
   })()
 
@@ -103,24 +109,27 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         materialCode: true,
-        title: true,
         price: true,
         diameter: true,
         weight: true,
         inventory: { select: { quantity: true } },
-        imageUrl: true,
-        majorCategory: true,
-        productGender: true,
-        colorSeries: true,
-        coreEnergyTag: true,
-        mineVeinTrace: true,
-        materialTrace: true,
-        visualFeatures: true,
-        classicSixDimensions: true,
-        zodiac: true,
-        fiveElements: true,
-        constellation: true,
-        chakra: true,
+        atlas: {
+          select: {
+            title: true,
+            majorCategory: true,
+            imageUrl: true,
+            colorSeries: true,
+            coreEnergyTag: true,
+            mineVeinTrace: true,
+            materialTrace: true,
+            visualFeatures: true,
+            classicSixDimensions: true,
+            zodiac: true,
+            fiveElements: true,
+            constellation: true,
+            chakra: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -129,6 +138,19 @@ export async function GET(req: NextRequest) {
 
   const productsWithStock = (products as any[]).map((p) => ({
     ...p,
+    title: p.atlas?.title ?? '',
+    majorCategory: p.atlas?.majorCategory ?? null,
+    imageUrl: p.atlas?.imageUrl ?? null,
+    colorSeries: p.atlas?.colorSeries ?? null,
+    coreEnergyTag: p.atlas?.coreEnergyTag ?? null,
+    mineVeinTrace: p.atlas?.mineVeinTrace ?? null,
+    materialTrace: p.atlas?.materialTrace ?? null,
+    visualFeatures: p.atlas?.visualFeatures ?? null,
+    classicSixDimensions: p.atlas?.classicSixDimensions ?? null,
+    zodiac: p.atlas?.zodiac ?? null,
+    fiveElements: p.atlas?.fiveElements ?? null,
+    constellation: p.atlas?.constellation ?? null,
+    chakra: p.atlas?.chakra ?? null,
     stock: p.inventory?.quantity ?? 0,
   }))
 
@@ -141,23 +163,10 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => null)) as
     | {
-        title?: string
+        atlasId?: string
         materialCode?: string | null
         price?: number | string
         stock?: number | string
-        imageUrl?: string | null
-        majorCategory?: string | null
-        productGender?: string | null
-        colorSeries?: string | null
-        coreEnergyTag?: string | null
-        mineVeinTrace?: string | null
-        materialTrace?: string | null
-        visualFeatures?: string | null
-        classicSixDimensions?: string | null
-        zodiac?: string | null
-        fiveElements?: string | null
-        constellation?: string | null
-        chakra?: string | null
         diameter?: string | null
         weight?: string | null
       }
@@ -167,8 +176,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '请求体不能为空' }, { status: 400 })
   }
 
-  const title = (body.title || '').trim()
-  if (!title) return NextResponse.json({ error: 'title 不能为空' }, { status: 400 })
+  const atlasId = (body.atlasId || '').trim()
+  if (!atlasId) return NextResponse.json({ error: '请选择图鉴（atlasId）' }, { status: 400 })
+
+  const atlas = await prisma.productAtlas.findUnique({
+    where: { id: atlasId },
+    select: { id: true },
+  })
+  if (!atlas) return NextResponse.json({ error: '图鉴不存在' }, { status: 400 })
 
   const priceNum = typeof body.price === 'string' ? Number(body.price) : body.price
   if (typeof priceNum !== 'number' || Number.isNaN(priceNum) || priceNum < 0) {
@@ -181,67 +196,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'stock 不合法' }, { status: 400 })
   }
 
-  const materialCode =
-    body.materialCode === undefined || body.materialCode === null
-      ? null
-      : String(body.materialCode).trim() || null
+  const materialCode = String(body.materialCode ?? '').trim()
+  if (!materialCode) {
+    return NextResponse.json({ error: '物料编号不能为空' }, { status: 400 })
+  }
+
+  const diameter = String(body.diameter ?? '').trim()
+  if (!diameter) {
+    return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
+  }
 
   const created = await prisma.product.create({
     data: {
-      title,
       materialCode,
+      atlasId,
       price: String(priceNum.toFixed(2)),
-      imageUrl: body.imageUrl || null,
-      majorCategory: body.majorCategory?.trim() || null,
-      productGender: body.productGender?.trim() || null,
-      colorSeries: body.colorSeries?.trim() || null,
-      coreEnergyTag: body.coreEnergyTag?.trim() || null,
-      mineVeinTrace: body.mineVeinTrace?.trim() || null,
-      materialTrace: body.materialTrace?.trim() || null,
-      visualFeatures: body.visualFeatures?.trim() || null,
-      classicSixDimensions: body.classicSixDimensions?.trim() || null,
-      zodiac: body.zodiac?.trim() || null,
-      fiveElements: body.fiveElements?.trim() || null,
-      constellation: body.constellation?.trim() || null,
-      chakra: body.chakra?.trim() || null,
-      diameter: body.diameter ?? null,
+      diameter,
       weight: body.weight ?? null,
-      inventory: {
-        create: {
-          quantity: stockNum,
-        },
-      },
+      inventory: { create: { quantity: stockNum } },
     },
-    select: {
-      id: true,
-      materialCode: true,
-      title: true,
-      price: true,
-      diameter: true,
-      weight: true,
-      inventory: { select: { quantity: true } },
-      imageUrl: true,
-      majorCategory: true,
-      productGender: true,
-      colorSeries: true,
-      coreEnergyTag: true,
-      mineVeinTrace: true,
-      materialTrace: true,
-      visualFeatures: true,
-      classicSixDimensions: true,
-      zodiac: true,
-      fiveElements: true,
-      constellation: true,
-      chakra: true,
-      updatedAt: true,
-    },
+    include: { inventory: { select: { quantity: true } }, atlas: true },
   })
 
   return NextResponse.json(
     {
       product: {
-        ...(created as any),
-        stock: (created as any).inventory?.quantity ?? 0,
+        id: created.id,
+        materialCode: created.materialCode,
+        title: created.atlas?.title ?? '',
+        price: created.price,
+        diameter: created.diameter,
+        weight: created.weight,
+        imageUrl: created.atlas?.imageUrl ?? null,
+        majorCategory: created.atlas?.majorCategory ?? null,
+        colorSeries: created.atlas?.colorSeries ?? null,
+        coreEnergyTag: created.atlas?.coreEnergyTag ?? null,
+        mineVeinTrace: created.atlas?.mineVeinTrace ?? null,
+        materialTrace: created.atlas?.materialTrace ?? null,
+        visualFeatures: created.atlas?.visualFeatures ?? null,
+        classicSixDimensions: created.atlas?.classicSixDimensions ?? null,
+        zodiac: created.atlas?.zodiac ?? null,
+        fiveElements: created.atlas?.fiveElements ?? null,
+        constellation: created.atlas?.constellation ?? null,
+        chakra: created.atlas?.chakra ?? null,
+        updatedAt: created.updatedAt,
+        stock: created.inventory?.quantity ?? 0,
       },
     },
     { status: 200 }

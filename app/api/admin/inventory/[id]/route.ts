@@ -23,7 +23,7 @@ export async function PATCH(
 
   const existing = await prisma.inventory.findUnique({
     where: { id },
-    include: { product: { select: { id: true, title: true, materialCode: true } } },
+    include: { product: { select: { id: true, materialCode: true, atlas: { select: { title: true } } } } },
   })
 
   if (!existing) {
@@ -62,7 +62,7 @@ export async function PATCH(
       inventory: {
         id: updated.id,
         productId: existing.product?.id ?? updated.productId,
-        productTitle: existing.product?.title ?? '',
+        productTitle: (existing.product as any)?.atlas?.title ?? '',
         materialCode: existing.product?.materialCode ?? null,
         quantity: updated.quantity,
         updatedAt: updated.updatedAt.toISOString(),

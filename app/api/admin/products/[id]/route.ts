@@ -18,7 +18,6 @@ export async function PATCH(
         stock?: number | string
         imageUrl?: string | null
         majorCategory?: string | null
-        productGender?: string | null
         colorSeries?: string | null
         coreEnergyTag?: string | null
         mineVeinTrace?: string | null
@@ -38,19 +37,30 @@ export async function PATCH(
     return NextResponse.json({ error: '请求体不能为空' }, { status: 400 })
   }
 
-  const exists = await prisma.product.findUnique({ where: { id }, select: { id: true } })
+  const exists = await prisma.product.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      atlasId: true,
+      materialCode: true,
+      diameter: true,
+      atlas: { select: { title: true, majorCategory: true } },
+    },
+  })
   if (!exists) return NextResponse.json({ error: '商品不存在' }, { status: 404 })
 
   const data: any = {}
+  const atlasData: any = {}
 
   if (body.title !== undefined) {
     const v = body.title.trim()
     if (!v) return NextResponse.json({ error: 'title 不能为空' }, { status: 400 })
-    data.title = v
+    atlasData.title = v
   }
   if (body.materialCode !== undefined) {
-    data.materialCode =
-      body.materialCode === null ? null : String(body.materialCode).trim() || null
+    const v = body.materialCode === null ? '' : String(body.materialCode).trim()
+    if (!v) return NextResponse.json({ error: '物料编号不能为空' }, { status: 400 })
+    data.materialCode = v
   }
   if (body.price !== undefined) {
     const n = typeof body.price === 'string' ? Number(body.price) : body.price
@@ -68,49 +78,72 @@ export async function PATCH(
     stockNum = n
   }
 
-  if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl
-  if (body.majorCategory !== undefined) data.majorCategory = body.majorCategory?.trim() || null
-  if (body.productGender !== undefined) data.productGender = body.productGender?.trim() || null
-  if (body.colorSeries !== undefined) data.colorSeries = body.colorSeries?.trim() || null
-  if (body.coreEnergyTag !== undefined) data.coreEnergyTag = body.coreEnergyTag?.trim() || null
-  if (body.mineVeinTrace !== undefined) data.mineVeinTrace = body.mineVeinTrace?.trim() || null
-  if (body.materialTrace !== undefined) data.materialTrace = body.materialTrace?.trim() || null
-  if (body.visualFeatures !== undefined) data.visualFeatures = body.visualFeatures?.trim() || null
+  if (body.majorCategory !== undefined) {
+    const v = String(body.majorCategory ?? '').trim()
+    if (!v) return NextResponse.json({ error: '大分类不能为空' }, { status: 400 })
+    atlasData.majorCategory = v
+  }
+  if (body.imageUrl !== undefined) atlasData.imageUrl = body.imageUrl
+  if (body.colorSeries !== undefined) atlasData.colorSeries = body.colorSeries?.trim() || null
+  if (body.coreEnergyTag !== undefined) atlasData.coreEnergyTag = body.coreEnergyTag?.trim() || null
+  if (body.mineVeinTrace !== undefined) atlasData.mineVeinTrace = body.mineVeinTrace?.trim() || null
+  if (body.materialTrace !== undefined) atlasData.materialTrace = body.materialTrace?.trim() || null
+  if (body.visualFeatures !== undefined) atlasData.visualFeatures = body.visualFeatures?.trim() || null
   if (body.classicSixDimensions !== undefined)
-    data.classicSixDimensions = body.classicSixDimensions?.trim() || null
-  if (body.zodiac !== undefined) data.zodiac = body.zodiac?.trim() || null
-  if (body.fiveElements !== undefined) data.fiveElements = body.fiveElements?.trim() || null
-  if (body.constellation !== undefined) data.constellation = body.constellation?.trim() || null
-  if (body.chakra !== undefined) data.chakra = body.chakra?.trim() || null
-  if (body.diameter !== undefined) data.diameter = body.diameter
+    atlasData.classicSixDimensions = body.classicSixDimensions?.trim() || null
+  if (body.zodiac !== undefined) atlasData.zodiac = body.zodiac?.trim() || null
+  if (body.fiveElements !== undefined) atlasData.fiveElements = body.fiveElements?.trim() || null
+  if (body.constellation !== undefined) atlasData.constellation = body.constellation?.trim() || null
+  if (body.chakra !== undefined) atlasData.chakra = body.chakra?.trim() || null
+  if (body.diameter !== undefined) {
+    const v = String(body.diameter ?? '').trim()
+    if (!v) return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
+    data.diameter = v
+  }
   if (body.weight !== undefined) data.weight = body.weight
 
-  const updated = await prisma.product.update({
-    where: { id },
-    data,
-    select: {
-      id: true,
-      materialCode: true,
-      title: true,
-      price: true,
-      diameter: true,
-      weight: true,
-      inventory: { select: { quantity: true } },
-      imageUrl: true,
-      majorCategory: true,
-      productGender: true,
-      colorSeries: true,
-      coreEnergyTag: true,
-      mineVeinTrace: true,
-      materialTrace: true,
-      visualFeatures: true,
-      classicSixDimensions: true,
-      zodiac: true,
-      fiveElements: true,
-      constellation: true,
-      chakra: true,
-      updatedAt: true,
-    },
+  const mergedMaterialCode =
+    data.materialCode !== undefined ? data.materialCode : exists.materialCode
+  const mergedDiameter = data.diameter !== undefined ? data.diameter : exists.diameter
+
+  if (!String(mergedMaterialCode ?? '').trim()) {
+    return NextResponse.json({ error: '物料编号不能为空' }, { status: 400 })
+  }
+  if (!String(mergedDiameter ?? '').trim()) {
+    return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // 如果 title 或 majorCategory 变了：切换/创建 atlas
+    const nextTitle = (atlasData.title ?? exists.atlas?.title ?? '').trim()
+    const nextMajorCategory =
+      atlasData.majorCategory !== undefined
+        ? String(atlasData.majorCategory).trim() || null
+        : exists.atlas?.majorCategory ?? null
+
+    let nextAtlasId = exists.atlasId || null
+    if (nextTitle) {
+      const majorCategoryKey = nextMajorCategory ?? ''
+      const atlas = await tx.productAtlas.upsert({
+        where: { title_majorCategory: { title: nextTitle, majorCategory: majorCategoryKey } },
+        create: {
+          title: nextTitle,
+          majorCategory: majorCategoryKey,
+          ...atlasData,
+        },
+        update: {
+          ...atlasData,
+        },
+      })
+      nextAtlasId = atlas.id
+    }
+
+    const sku = await tx.product.update({
+      where: { id },
+      data: { ...data, atlasId: nextAtlasId },
+      include: { inventory: { select: { quantity: true } }, atlas: true },
+    })
+    return sku
   })
 
   if (stockNum !== undefined) {
@@ -125,7 +158,25 @@ export async function PATCH(
   return NextResponse.json(
     {
       product: {
-        ...(updated as any),
+        id: updated.id,
+        materialCode: updated.materialCode,
+        title: updated.atlas?.title ?? '',
+        price: updated.price,
+        diameter: updated.diameter,
+        weight: updated.weight,
+        imageUrl: updated.atlas?.imageUrl ?? null,
+        majorCategory: updated.atlas?.majorCategory ?? null,
+        colorSeries: updated.atlas?.colorSeries ?? null,
+        coreEnergyTag: updated.atlas?.coreEnergyTag ?? null,
+        mineVeinTrace: updated.atlas?.mineVeinTrace ?? null,
+        materialTrace: updated.atlas?.materialTrace ?? null,
+        visualFeatures: updated.atlas?.visualFeatures ?? null,
+        classicSixDimensions: updated.atlas?.classicSixDimensions ?? null,
+        zodiac: updated.atlas?.zodiac ?? null,
+        fiveElements: updated.atlas?.fiveElements ?? null,
+        constellation: updated.atlas?.constellation ?? null,
+        chakra: updated.atlas?.chakra ?? null,
+        updatedAt: updated.updatedAt,
         stock: (updated as any).inventory?.quantity ?? 0,
       },
     },
@@ -142,9 +193,18 @@ export async function DELETE(
 
   const { id } = await ctx.params
 
-  const exists = await prisma.product.findUnique({ where: { id }, select: { id: true } })
+  const exists = await prisma.product.findUnique({ where: { id }, select: { id: true, atlasId: true } })
   if (!exists) return NextResponse.json({ error: '商品不存在' }, { status: 404 })
 
-  await prisma.product.delete({ where: { id } })
+  await prisma.$transaction(async (tx) => {
+    await tx.product.delete({ where: { id } })
+    const atlasId = exists.atlasId
+    if (atlasId) {
+      const left = await tx.product.count({ where: { atlasId } })
+      if (left === 0) {
+        await tx.productAtlas.delete({ where: { id: atlasId } }).catch(() => {})
+      }
+    }
+  })
   return NextResponse.json({ ok: true }, { status: 200 })
 }

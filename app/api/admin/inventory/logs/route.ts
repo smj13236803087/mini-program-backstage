@@ -22,11 +22,11 @@ export async function GET(req: NextRequest) {
   if (q) {
     if (!field || field === 'all') {
       where.OR = [
-        { product: { title: { contains: q } } },
+        { product: { atlas: { is: { title: { contains: q } } } } },
         { type: { contains: q.toUpperCase() } },
       ]
     } else if (field === 'productTitle') {
-      where.product = { title: { contains: q } }
+      where.product = { atlas: { is: { title: { contains: q } } } }
     } else if (field === 'type') {
       where.type = q.toUpperCase()
     }
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         product: {
           select: {
             id: true,
-            title: true,
+            atlas: { select: { title: true } },
           },
         },
       },
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   const rows = logs.map((log) => ({
     id: log.id,
     productId: log.product?.id ?? log.productId,
-    productTitle: log.product?.title ?? '',
+    productTitle: (log.product as any)?.atlas?.title ?? '',
     type: log.type,
     quantity: log.quantity,
     beforeQty: log.beforeQty,

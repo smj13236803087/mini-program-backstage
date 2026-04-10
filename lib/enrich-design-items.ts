@@ -12,11 +12,11 @@ export async function enrichBraceletItemsImageUrl(items: unknown): Promise<any[]
   }
   if (productIds.size === 0) return arr
 
-  const products = await prisma.product.findMany({
+  const products = await (prisma as any).product.findMany({
     where: { id: { in: Array.from(productIds) } },
-    select: { id: true, imageUrl: true },
+    select: { id: true, atlas: { select: { imageUrl: true } } },
   })
-  const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+  const imageMap = new Map((products as any[]).map((p: any) => [p.id, p?.atlas?.imageUrl || null] as const))
 
   return arr.map((it) => {
     const pid = it?.productId ? String(it.productId) : ''

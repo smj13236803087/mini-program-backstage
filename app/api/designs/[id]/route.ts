@@ -54,9 +54,9 @@ export async function GET(
     if (productIds.size > 0) {
       const products = await prisma.product.findMany({
         where: { id: { in: Array.from(productIds) } },
-        select: { id: true, imageUrl: true },
+        select: { id: true, atlas: { select: { imageUrl: true } } },
       })
-      const imageMap = new Map(products.map((p) => [p.id, p.imageUrl] as const))
+      const imageMap = new Map(products.map((p) => [p.id, (p as any)?.atlas?.imageUrl || null] as const))
 
       ;(design as any).items = (items as any[]).map((it) => {
         const pid = it?.productId ? String(it.productId) : ''

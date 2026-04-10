@@ -2,16 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
-  ReloadOutlined,
   SearchOutlined,
-  UploadOutlined,
 } from '@ant-design/icons'
-import { Button, Form, Image, Input, InputNumber, Modal, Select, Space, Table, Typography } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Select, Space, Table, Typography } from 'antd'
 
 type ProductRow = {
   id: string
@@ -37,25 +33,18 @@ type ProductRow = {
   updatedAt: string
 }
 
-type ProductFormValues = {
-  materialCode?: string
+type AtlasOption = {
+  id: string
   title: string
+  majorCategory: string | null
+}
+
+type ProductFormValues = {
+  atlasId?: string
+  materialCode?: string | null
   price: number
   diameter?: string
   weight?: string
-  imageUrl?: string
-  majorCategory?: string
-  productGender?: string
-  colorSeries?: string
-  coreEnergyTag?: string
-  mineVeinTrace?: string
-  materialTrace?: string
-  visualFeatures?: string
-  classicSixDimensions?: string
-  zodiac?: string
-  fiveElements?: string
-  constellation?: string
-  chakra?: string
 }
 
 export default function DashboardProductsPage() {
@@ -64,12 +53,6 @@ export default function DashboardProductsPage() {
   const [newSearchValue, setNewSearchValue] = useState('')
   const [oldSearchValue, setOldSearchValue] = useState('')
   const [hasSearch, setHasSearch] = useState(false)
-
-  const [isSort, setIsSort] = useState(false)
-  const [sortConfig, setSortConfig] = useState<{
-    key: string
-    order: 'asc' | 'desc' | null
-  }>({ key: '', order: null })
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -80,54 +63,27 @@ export default function DashboardProductsPage() {
   const [error, setError] = useState<string | null>(null)
   const [products, setProducts] = useState<ProductRow[]>([])
 
-  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProductRow | null>(null)
   const [form] = Form.useForm<ProductFormValues>()
-  const imageUrlValue = Form.useWatch('imageUrl', form)
+  const [atlasOptions, setAtlasOptions] = useState<{ label: string; value: string }[]>([])
+  const [atlasLoading, setAtlasLoading] = useState(false)
 
   const emptyFormValues: ProductFormValues = {
+    atlasId: undefined,
     materialCode: '',
-    title: '',
     price: 0,
     diameter: '',
     weight: '',
-    imageUrl: '',
-    majorCategory: '',
-    productGender: '',
-    colorSeries: '',
-    coreEnergyTag: '',
-    mineVeinTrace: '',
-    materialTrace: '',
-    visualFeatures: '',
-    classicSixDimensions: '',
-    zodiac: '',
-    fiveElements: '',
-    constellation: '',
-    chakra: '',
   }
 
   const formInitialValues: ProductFormValues = editing
     ? {
         materialCode: editing.materialCode || '',
-        title: editing.title || '',
         price: Number(editing.price || 0),
         diameter: editing.diameter || '',
         weight: editing.weight || '',
-        imageUrl: editing.imageUrl || '',
-        majorCategory: editing.majorCategory || '',
-        productGender: editing.productGender || '',
-        colorSeries: editing.colorSeries || '',
-        coreEnergyTag: editing.coreEnergyTag || '',
-        mineVeinTrace: editing.mineVeinTrace || '',
-        materialTrace: editing.materialTrace || '',
-        visualFeatures: editing.visualFeatures || '',
-        classicSixDimensions: editing.classicSixDimensions || '',
-        zodiac: editing.zodiac || '',
-        fiveElements: editing.fiveElements || '',
-        constellation: editing.constellation || '',
-        chakra: editing.chakra || '',
       }
     : emptyFormValues
 
@@ -138,13 +94,39 @@ export default function DashboardProductsPage() {
     form.setFieldsValue(formInitialValues)
   }, [modalOpen, editing])
 
+  useEffect(() => {
+    if (!modalOpen || editing) return
+    let cancelled = false
+    ;(async () => {
+      setAtlasLoading(true)
+      try {
+        const res = await fetch('/api/admin/product-atlas?page=1&pageSize=2000')
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok || cancelled) return
+        const rows = (json?.atlases || []) as AtlasOption[]
+        setAtlasOptions(
+          rows.map((a) => ({
+            value: a.id,
+            label: `${a.title}${a.majorCategory ? ` · ${a.majorCategory}` : ''}`,
+          }))
+        )
+      } catch {
+        if (!cancelled) setAtlasOptions([])
+      } finally {
+        if (!cancelled) setAtlasLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [modalOpen, editing])
+
   const queryKey = useMemo(() => {
     const sp = new URLSearchParams()
     const q = (hasSearch ? newSearchValue : oldSearchValue).trim()
     const field = (hasSearch ? newSearchType : oldSearchType).trim()
     if (q) sp.set('q', q)
     if (field && field !== 'all') sp.set('field', field)
-    if (sortConfig.key && sortConfig.order) sp.set('sort', `${sortConfig.key}:${sortConfig.order}`)
     sp.set('page', String(pagination.current))
     sp.set('pageSize', String(pagination.pageSize))
     return sp.toString()
@@ -154,8 +136,6 @@ export default function DashboardProductsPage() {
     oldSearchValue,
     newSearchType,
     oldSearchType,
-    sortConfig.key,
-    sortConfig.order,
     pagination.current,
     pagination.pageSize,
   ])
@@ -199,26 +179,18 @@ export default function DashboardProductsPage() {
 
   const submit = async (values: ProductFormValues) => {
     const payload: any = {
-      title: values.title.trim(),
       price: Number(values.price),
-      diameter: (values.diameter || '').trim() || null,
+      diameter: (values.diameter || '').trim(),
       weight: (values.weight || '').trim() || null,
-      imageUrl: (values.imageUrl || '').trim() || null,
-      majorCategory: (values.majorCategory || '').trim() || null,
-      productGender: (values.productGender || '').trim() || null,
-      colorSeries: (values.colorSeries || '').trim() || null,
-      coreEnergyTag: (values.coreEnergyTag || '').trim() || null,
-      mineVeinTrace: (values.mineVeinTrace || '').trim() || null,
-      materialTrace: (values.materialTrace || '').trim() || null,
-      visualFeatures: (values.visualFeatures || '').trim() || null,
-      classicSixDimensions: (values.classicSixDimensions || '').trim() || null,
-      zodiac: (values.zodiac || '').trim() || null,
-      fiveElements: (values.fiveElements || '').trim() || null,
-      constellation: (values.constellation || '').trim() || null,
-      chakra: (values.chakra || '').trim() || null,
+      materialCode: (values.materialCode || '').trim(),
     }
     if (!editing) {
-      payload.materialCode = (values.materialCode || '').trim() || null
+      const aid = (values.atlasId || '').trim()
+      if (!aid) {
+        setError('请选择图鉴')
+        return
+      }
+      payload.atlasId = aid
     }
 
     setSaving(true)
@@ -269,51 +241,6 @@ export default function DashboardProductsPage() {
     }
   }
 
-  async function uploadImage(file: File) {
-    setUploading(true)
-    setError(null)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/upload/product-image', {
-        method: 'POST',
-        body: fd,
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(json?.error || `上传失败（${res.status}）`)
-        return
-      }
-      const url = json?.url || ''
-      if (!url) {
-        setError('上传成功但未返回 url')
-        return
-      }
-      form.setFieldValue('imageUrl', url)
-    } catch (e) {
-      setError(`上传失败：${String(e)}`)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleSort = (key: string) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
-      }
-      return { key, order: 'desc' }
-    })
-    setIsSort(true)
-  }
-
-  useEffect(() => {
-    if (!isSort) return
-    void load()
-    setIsSort(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSort])
-
   const triggerSearch = () => {
     setOldSearchValue(newSearchValue)
     setOldSearchType(newSearchType)
@@ -337,150 +264,18 @@ export default function DashboardProductsPage() {
   ]
 
   const columns = [
+    { title: '物料名称', dataIndex: 'title', key: 'title', width: 160, render: (v: string) => v || '-' },
+    { title: '物料编号', dataIndex: 'materialCode', key: 'materialCode', width: 160 },
     {
-      title: '图片',
-      dataIndex: 'imageUrl',
-      key: 'imageUrl',
-      width: 90,
-      render: (url: string | null, p: ProductRow) =>
-        url ? (
-          <Image
-            src={url}
-            alt={p.title}
-            width={48}
-            height={48}
-            style={{ objectFit: 'cover', borderRadius: 8 }}
-            preview={{ mask: '查看' }}
-          />
-        ) : (
-          <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f1f5f9' }} />
-        ),
-    },
-    {
-      title: '商品',
-      dataIndex: 'title',
-      key: 'title',
-      width: 260,
-      render: (t: string, p: ProductRow) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{t}</div>
-        </div>
-      ),
-    },
-    { title: '物料编号', dataIndex: 'materialCode', key: 'materialCode', width: 120 },
-    { title: '大分类', dataIndex: 'majorCategory', key: 'majorCategory', width: 120 },
-    { title: '性别', dataIndex: 'productGender', key: 'productGender', width: 100 },
-    { title: '色系', dataIndex: 'colorSeries', key: 'colorSeries', width: 120 },
-    {
-      title: '核心能量标签',
-      dataIndex: 'coreEnergyTag',
-      key: 'coreEnergyTag',
-      width: 200,
-      render: (v: string | null) =>
-        v ? (
-          <span title={v}>
-            {v.slice(0, 40)}
-            {v.length > 40 ? '...' : ''}
-          </span>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '矿脉溯源',
-      dataIndex: 'mineVeinTrace',
-      key: 'mineVeinTrace',
-      width: 220,
-      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
-    },
-    {
-      title: '材质溯源',
-      dataIndex: 'materialTrace',
-      key: 'materialTrace',
-      width: 220,
-      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
-    },
-    {
-      title: '视觉特征',
-      dataIndex: 'visualFeatures',
-      key: 'visualFeatures',
-      width: 220,
-      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
-    },
-    {
-      title: '经典六维',
-      dataIndex: 'classicSixDimensions',
-      key: 'classicSixDimensions',
-      width: 220,
-      render: (v: string | null) => (v ? <span title={v}>{v}</span> : '-'),
-    },
-    { title: '生肖', dataIndex: 'zodiac', key: 'zodiac', width: 100 },
-    { title: '五行', dataIndex: 'fiveElements', key: 'fiveElements', width: 100 },
-    { title: '星座', dataIndex: 'constellation', key: 'constellation', width: 100 },
-    { title: '脉轮', dataIndex: 'chakra', key: 'chakra', width: 100 },
-    { title: '价格', dataIndex: 'price', key: 'price', width: 110, render: (v: any) => String(v) },
-    {
-      title: '直径',
-      dataIndex: 'diameter',
-      key: 'diameter',
-      width: 120,
+      title: '大分类',
+      dataIndex: 'majorCategory',
+      key: 'majorCategory',
+      width: 140,
       render: (v: string | null) => v || '-',
     },
-    { title: '重量', dataIndex: 'weight', key: 'weight', width: 120, render: (v: string | null) => v || '-' },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: sortConfig.key === 'createdAt' ? 600 : 400,
-            color: sortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleSort('createdAt')}
-        >
-          创建时间
-          {sortConfig.key === 'createdAt' ? (
-            sortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 190,
-      render: (iso: string) => (iso ? new Date(iso).toLocaleString() : '-'),
-    },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: sortConfig.key === 'updatedAt' ? 600 : 400,
-            color: sortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleSort('updatedAt')}
-        >
-          更新时间
-          {sortConfig.key === 'updatedAt' ? (
-            sortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 190,
-      render: (iso: string) => (iso ? new Date(iso).toLocaleString() : '-'),
-    },
+    { title: '单价（元）', dataIndex: 'price', key: 'price', width: 130, render: (v: any) => String(v) },
+    { title: '尺寸', dataIndex: 'diameter', key: 'diameter', width: 130, render: (v: string | null) => v || '-' },
+    { title: '重量', dataIndex: 'weight', key: 'weight', width: 130, render: (v: string | null) => v || '-' },
     {
       title: '操作',
       key: 'actions',
@@ -571,7 +366,7 @@ export default function DashboardProductsPage() {
         confirmLoading={saving}
         onOk={() => form.submit()}
         onCancel={() => {
-          if (saving || uploading) return
+          if (saving) return
           setModalOpen(false)
         }}
         destroyOnClose
@@ -584,50 +379,29 @@ export default function DashboardProductsPage() {
           preserve={false}
           initialValues={formInitialValues}
         >
+          <Form.Item
+            name="materialCode"
+            label="物料编号"
+            rules={[{ required: true, message: '请输入物料编号' }]}
+          >
+            <Input placeholder="必填，需唯一" />
+          </Form.Item>
           {!editing ? (
-            <Form.Item name="materialCode" label="物料编号">
-              <Input placeholder="可选，需唯一" />
+            <Form.Item
+              name="atlasId"
+              label="关联图鉴"
+              rules={[{ required: true, message: '请选择图鉴' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="搜索并选择图鉴"
+                loading={atlasLoading}
+                options={atlasOptions}
+                allowClear={false}
+              />
             </Form.Item>
           ) : null}
-          <Form.Item name="title" label="物料名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="majorCategory" label="大分类">
-            <Input placeholder="例如：主珠、配珠" />
-          </Form.Item>
-          <Form.Item name="productGender" label="性别">
-            <Input />
-          </Form.Item>
-          <Form.Item name="colorSeries" label="色系（含色系归属）">
-            <Input placeholder="#RRGGBB 或文字" />
-          </Form.Item>
-          <Form.Item name="coreEnergyTag" label="核心能量标签">
-            <Input.TextArea rows={2} placeholder="可填写标签或短说明" />
-          </Form.Item>
-          <Form.Item name="mineVeinTrace" label="矿脉溯源">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="materialTrace" label="材质溯源">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="visualFeatures" label="视觉特征">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="classicSixDimensions" label="经典六维">
-            <Input.TextArea rows={3} placeholder="可为 JSON 或长文本" />
-          </Form.Item>
-          <Form.Item name="zodiac" label="生肖">
-            <Input placeholder="如：鼠、牛 或多选说明" />
-          </Form.Item>
-          <Form.Item name="fiveElements" label="五行">
-            <Input placeholder="如：金、木" />
-          </Form.Item>
-          <Form.Item name="constellation" label="星座">
-            <Input />
-          </Form.Item>
-          <Form.Item name="chakra" label="脉轮">
-            <Input />
-          </Form.Item>
           <Form.Item
             name="price"
             label="价格（元）"
@@ -636,49 +410,18 @@ export default function DashboardProductsPage() {
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Space style={{ width: '100%', marginTop: 12 }} size={12}>
-            <Form.Item name="diameter" label="直径" style={{ flex: 1, marginBottom: 0 }}>
+            <Form.Item
+              name="diameter"
+              label="直径"
+              style={{ flex: 1, marginBottom: 0 }}
+              rules={[{ required: true, message: '请输入直径' }]}
+            >
               <Input placeholder="例如：6mm" />
             </Form.Item>
             <Form.Item name="weight" label="重量" style={{ flex: 1, marginBottom: 0 }}>
               <Input placeholder="例如：1.2g" />
             </Form.Item>
           </Space>
-
-          <Form.Item label="图片" style={{ marginTop: 12 }}>
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-              <Space wrap>
-                <Button
-                  onClick={() => {
-                    const input = document.createElement('input')
-                    input.type = 'file'
-                    input.accept = 'image/*'
-                    input.onchange = () => {
-                      const file = (input.files || [])[0]
-                      if (!file) return
-                      void uploadImage(file)
-                    }
-                    input.click()
-                  }}
-                  disabled={uploading || saving}
-                  icon={<UploadOutlined />}
-                >
-                  {uploading ? '上传中...' : '选择并上传'}
-                </Button>
-                {imageUrlValue ? (
-                  <Image
-                    src={String(imageUrlValue)}
-                    width={64}
-                    height={64}
-                    style={{ objectFit: 'cover', borderRadius: 8 }}
-                    preview
-                  />
-                ) : null}
-              </Space>
-              <Form.Item name="imageUrl" noStyle>
-                <Input placeholder="也可以直接粘贴图片 URL" />
-              </Form.Item>
-            </Space>
-          </Form.Item>
 
         </Form>
       </Modal>

@@ -76,6 +76,7 @@ export default function DashboardLayout({
     if (!pathname) return 'dashboard'
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
     if (pathname.startsWith('/dashboard/products')) return 'products-list'
+    if (pathname.startsWith('/dashboard/product-atlas')) return 'product-atlas-list'
     if (pathname.startsWith('/dashboard/inventory/logs')) return 'inventory-logs'
     if (pathname.startsWith('/dashboard/inventory')) return 'inventory-list'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
@@ -153,6 +154,10 @@ export default function DashboardLayout({
                 {
                   key: 'products-list',
                   label: <Link href="/dashboard/products">商品列表</Link>,
+                },
+                {
+                  key: 'product-atlas-list',
+                  label: <Link href="/dashboard/product-atlas">图鉴列表</Link>,
                 },
                 {
                   key: 'inventory-list',
