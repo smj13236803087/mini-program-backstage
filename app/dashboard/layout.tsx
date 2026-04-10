@@ -7,7 +7,13 @@ import {
   ShoppingCartOutlined,
   LogoutOutlined,
   UserOutlined,
-  AppstoreOutlined,
+  TeamOutlined,
+  ShopOutlined,
+  UnorderedListOutlined,
+  BookOutlined,
+  InboxOutlined,
+  HistoryOutlined,
+  ClusterOutlined,
   GlobalOutlined,
 } from '@ant-design/icons'
 import Link from 'next/link'
@@ -138,7 +144,7 @@ export default function DashboardLayout({
             },
             {
               key: 'users',
-              icon: <UserOutlined />,
+              icon: <TeamOutlined />,
               label: <Link href="/dashboard/users">用户管理</Link>,
             },
             {
@@ -148,30 +154,34 @@ export default function DashboardLayout({
             },
             {
               key: 'products-group',
-              icon: <AppstoreOutlined />,
+              icon: <ShopOutlined />,
               label: '商品管理',
               children: [
                 {
                   key: 'products-list',
+                  icon: <UnorderedListOutlined />,
                   label: <Link href="/dashboard/products">商品列表</Link>,
                 },
                 {
                   key: 'product-atlas-list',
+                  icon: <BookOutlined />,
                   label: <Link href="/dashboard/product-atlas">图鉴列表</Link>,
                 },
                 {
                   key: 'inventory-list',
+                  icon: <InboxOutlined />,
                   label: <Link href="/dashboard/inventory">库存列表</Link>,
                 },
                 {
                   key: 'inventory-logs',
+                  icon: <HistoryOutlined />,
                   label: <Link href="/dashboard/inventory/logs">库存流水</Link>,
                 },
               ],
             },
             {
               key: 'designs',
-              icon: <AppstoreOutlined />,
+              icon: <ClusterOutlined />,
               label: <Link href="/dashboard/designs">作品集管理</Link>,
             },
             {
