@@ -31,6 +31,16 @@ export async function GET() {
             mineVeinTrace: true,
             materialTrace: true,
             visualFeatures: true,
+            sixDimensions: {
+              select: {
+                love: true,
+                wealth: true,
+                career: true,
+                focus: true,
+                emotion: true,
+                protection: true,
+              },
+            },
           },
         },
       },
@@ -42,6 +52,7 @@ export async function GET() {
       const size = (p.diameter || '').trim()
 
       // 小程序目前只用到 id/name/color/size（以及后续可能扩展 energy 标签）
+      const six = atlas?.sixDimensions || null
       return {
         id: (p.materialCode && p.materialCode.trim()) || p.id,
         name: atlas?.title || '',
@@ -60,6 +71,13 @@ export async function GET() {
         mineVeinTrace: atlas?.mineVeinTrace || null,
         materialTrace: atlas?.materialTrace || null,
         visualFeatures: atlas?.visualFeatures || null,
+        // 六维真实值（0-1）
+        love: six?.love ?? null,
+        wealth: six?.wealth ?? null,
+        career: six?.career ?? null,
+        focus: six?.focus ?? null,
+        emotion: six?.emotion ?? null,
+        protection: six?.protection ?? null,
       }
     })
 
