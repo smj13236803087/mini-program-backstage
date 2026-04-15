@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Image, Input, Select, Space, Table, Typography, Button, Form, Modal } from 'antd'
+import { Image, Input, Select, Space, Table, Typography, Button, Form, Modal, InputNumber, Divider } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
 
 type AtlasRow = {
@@ -19,6 +19,15 @@ type AtlasRow = {
   constellation: string | null
   chakra: string | null
   updatedAt: string
+}
+
+type SixDimForm = {
+  love: number
+  wealth: number
+  career: number
+  focus: number
+  emotion: number
+  protection: number
 }
 
 export default function DashboardProductAtlasPage() {
@@ -151,6 +160,14 @@ export default function DashboardProductAtlasPage() {
     setEditing(null)
     setModalOpen(true)
     form.resetFields()
+    form.setFieldsValue({
+      love: 0,
+      wealth: 0,
+      career: 0,
+      focus: 0,
+      emotion: 0,
+      protection: 0,
+    } as any)
   }
 
   const openEdit = (row: AtlasRow) => {
@@ -189,6 +206,13 @@ export default function DashboardProductAtlasPage() {
       fiveElements: (values.fiveElements || '').trim() || null,
       constellation: (values.constellation || '').trim() || null,
       chakra: (values.chakra || '').trim() || null,
+      // 新增图鉴时要求输入六维；编辑时后端不会强制，但我们也一起提交方便后续扩展
+      love: (values as any).love,
+      wealth: (values as any).wealth,
+      career: (values as any).career,
+      focus: (values as any).focus,
+      emotion: (values as any).emotion,
+      protection: (values as any).protection,
     }
     try {
       const isEdit = Boolean(editing?.id)
@@ -408,6 +432,60 @@ export default function DashboardProductAtlasPage() {
           <Form.Item name="chakra" label="脉轮">
             <Input />
           </Form.Item>
+
+          {!editing ? (
+            <>
+              <Divider style={{ margin: '12px 0' }} />
+              <Typography.Title level={5} style={{ margin: '0 0 12px 0' }}>
+                六维（新增必填，0-1）
+              </Typography.Title>
+              <Space style={{ width: '100%' }} size={12} wrap>
+                <Form.Item name="love" label="爱情吸引" rules={[{ required: true, message: '必填' }]} style={{ flex: 1, minWidth: 180 }}>
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  name="wealth"
+                  label="财富丰盛"
+                  rules={[{ required: true, message: '必填' }]}
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  name="career"
+                  label="事业成功"
+                  rules={[{ required: true, message: '必填' }]}
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  name="focus"
+                  label="专注成长"
+                  rules={[{ required: true, message: '必填' }]}
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  name="emotion"
+                  label="情绪平衡"
+                  rules={[{ required: true, message: '必填' }]}
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  name="protection"
+                  label="能量守护"
+                  rules={[{ required: true, message: '必填' }]}
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
+                </Form.Item>
+              </Space>
+            </>
+          ) : null}
         </Form>
       </Modal>
     </div>

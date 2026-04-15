@@ -83,6 +83,12 @@ export async function POST(req: NextRequest) {
         fiveElements?: string | null
         constellation?: string | null
         chakra?: string | null
+        love?: number | string | null
+        wealth?: number | string | null
+        career?: number | string | null
+        focus?: number | string | null
+        emotion?: number | string | null
+        protection?: number | string | null
       }
     | null
 
@@ -91,38 +97,72 @@ export async function POST(req: NextRequest) {
   const title = (body.title || '').trim()
   if (!title) return NextResponse.json({ error: '商品名不能为空' }, { status: 400 })
 
+  const parse01 = (v: unknown): string | null => {
+    if (v === null || v === undefined) return null
+    const s0 = String(v).trim()
+    if (!s0) return null
+    const n = Number(s0)
+    if (Number.isNaN(n)) return null
+    const clamped = Math.max(0, Math.min(1, n))
+    return clamped.toFixed(4)
+  }
+
+  // 新增图鉴时要求必须输入六维（0-1）
+  const requiredKeys = ['love', 'wealth', 'career', 'focus', 'emotion', 'protection'] as const
+  for (const k of requiredKeys) {
+    const v = parse01((body as any)[k])
+    if (v === null) return NextResponse.json({ error: `六维字段「${k}」不能为空且需为 0-1` }, { status: 400 })
+  }
+
   try {
-    const atlas = await prisma.productAtlas.create({
-      data: {
-        title,
-        imageUrl: body.imageUrl?.trim() || null,
-        majorCategory: body.majorCategory?.trim() || null,
-        coreEnergyTag: body.coreEnergyTag?.trim() || null,
-        mineVeinTrace: body.mineVeinTrace?.trim() || null,
-        materialTrace: body.materialTrace?.trim() || null,
-        visualFeatures: body.visualFeatures?.trim() || null,
-        classicSixDimensions: body.classicSixDimensions?.trim() || null,
-        zodiac: body.zodiac?.trim() || null,
-        fiveElements: body.fiveElements?.trim() || null,
-        constellation: body.constellation?.trim() || null,
-        chakra: body.chakra?.trim() || null,
-      },
-      select: {
-        id: true,
-        title: true,
-        imageUrl: true,
-        majorCategory: true,
-        coreEnergyTag: true,
-        mineVeinTrace: true,
-        materialTrace: true,
-        visualFeatures: true,
-        classicSixDimensions: true,
-        zodiac: true,
-        fiveElements: true,
-        constellation: true,
-        chakra: true,
-        updatedAt: true,
-      },
+    const atlas = await prisma.$transaction(async (tx) => {
+      const created = await tx.productAtlas.create({
+        data: {
+          title,
+          imageUrl: body.imageUrl?.trim() || null,
+          majorCategory: body.majorCategory?.trim() || null,
+          coreEnergyTag: body.coreEnergyTag?.trim() || null,
+          mineVeinTrace: body.mineVeinTrace?.trim() || null,
+          materialTrace: body.materialTrace?.trim() || null,
+          visualFeatures: body.visualFeatures?.trim() || null,
+          classicSixDimensions: body.classicSixDimensions?.trim() || null,
+          zodiac: body.zodiac?.trim() || null,
+          fiveElements: body.fiveElements?.trim() || null,
+          constellation: body.constellation?.trim() || null,
+          chakra: body.chakra?.trim() || null,
+        },
+        select: {
+          id: true,
+          title: true,
+          imageUrl: true,
+          majorCategory: true,
+          coreEnergyTag: true,
+          mineVeinTrace: true,
+          materialTrace: true,
+          visualFeatures: true,
+          classicSixDimensions: true,
+          zodiac: true,
+          fiveElements: true,
+          constellation: true,
+          chakra: true,
+          updatedAt: true,
+        },
+      })
+
+      await tx.atlasSixDimension.create({
+        data: {
+          atlasId: created.id,
+          love: parse01(body.love),
+          wealth: parse01(body.wealth),
+          career: parse01(body.career),
+          focus: parse01(body.focus),
+          emotion: parse01(body.emotion),
+          protection: parse01(body.protection),
+        },
+        select: { atlasId: true },
+      })
+
+      return created
     })
     return NextResponse.json({ atlas }, { status: 200 })
   } catch (e) {

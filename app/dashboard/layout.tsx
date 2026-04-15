@@ -11,6 +11,7 @@ import {
   ShopOutlined,
   UnorderedListOutlined,
   BookOutlined,
+  RadarChartOutlined,
   InboxOutlined,
   HistoryOutlined,
   ClusterOutlined,
@@ -83,6 +84,7 @@ export default function DashboardLayout({
     if (pathname.startsWith('/dashboard/orders')) return 'orders'
     if (pathname.startsWith('/dashboard/products')) return 'products-list'
     if (pathname.startsWith('/dashboard/product-atlas')) return 'product-atlas-list'
+    if (pathname.startsWith('/dashboard/atlas-six-dimensions')) return 'atlas-six-dimensions'
     if (pathname.startsWith('/dashboard/inventory/logs')) return 'inventory-logs'
     if (pathname.startsWith('/dashboard/inventory')) return 'inventory-list'
     if (pathname.startsWith('/dashboard/designs')) return 'designs'
@@ -166,6 +168,11 @@ export default function DashboardLayout({
                   key: 'product-atlas-list',
                   icon: <BookOutlined />,
                   label: <Link href="/dashboard/product-atlas">图鉴列表</Link>,
+                },
+                {
+                  key: 'atlas-six-dimensions',
+                  icon: <RadarChartOutlined />,
+                  label: <Link href="/dashboard/atlas-six-dimensions">商品六维</Link>,
                 },
                 {
                   key: 'inventory-list',

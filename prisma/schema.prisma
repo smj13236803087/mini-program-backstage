@@ -43,6 +43,9 @@ model ProductAtlas {
 
   products Product[]
 
+  /// 六维能量（0–1），与图鉴/物料 1:1；同一物料的多个规格共享同一份六维
+  sixDimensions AtlasSixDimension?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -50,6 +53,26 @@ model ProductAtlas {
   @@index([majorCategory])
   @@unique([title, majorCategory])
   @@map("product_atlas")
+}
+
+/// 图鉴六维能量（按物料名称/图鉴聚合；各维取值范围 0–1，后续再录入）
+model AtlasSixDimension {
+  id String @id @default(cuid())
+
+  atlasId String @unique
+  atlas   ProductAtlas @relation(fields: [atlasId], references: [id], onDelete: Cascade)
+
+  love       Decimal? @db.Decimal(5, 4)
+  wealth     Decimal? @db.Decimal(5, 4)
+  career     Decimal? @db.Decimal(5, 4)
+  focus      Decimal? @db.Decimal(5, 4)
+  emotion    Decimal? @db.Decimal(5, 4)
+  protection Decimal? @db.Decimal(5, 4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("atlas_six_dimensions")
 }
 
 /// 商品 SKU（同一物料名称可有多种粒径/规格；此表只存价格/规格等可变信息）
