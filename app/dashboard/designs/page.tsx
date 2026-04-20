@@ -1,860 +1,497 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  CheckOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-} from '@ant-design/icons'
-import { Button, Input, Select, Space, Table, Typography } from 'antd'
-import { braceletItemFromProductRow, type ProductRowLite } from '@/lib/product-display'
-
-type UserRow = {
-  id: string
-  nickname: string | null
-  phone: string | null
-  weixin_openid: string | null
-  email: string | null
-  role: string
-  createdAt: string
-  updatedAt: string
-  _count: { braceletDesigns: number; orders: number; addresses: number }
-}
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Typography,
+  message,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 
 type DesignRow = {
   id: string
+  userId: string
   totalPrice: number
+  totalWeight: number | null
+  averageDiameter: number | null
   wristSize: number | null
   wearingStyle: string | null
-  items: any
+  items: unknown
   createdAt: string
   updatedAt: string
+  user?: {
+    id: string
+    nickname: string | null
+    phone: string | null
+  } | null
 }
 
-type ProductRow = ProductRowLite & {
-  imageUrl: string | null
+type DesignFormValues = {
+  userId: string
+  totalPrice: number
+  totalWeight?: number | null
+  averageDiameter?: number | null
+  wristSize?: number | null
+  wearingStyle?: string | null
+  itemsJson: string
+}
+
+type UserOption = {
+  id: string
+  nickname: string | null
+  phone?: string | null
+}
+
+function formatTime(v: string | null | undefined) {
+  if (!v) return '-'
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return '-'
+  return d.toLocaleString('zh-CN', { hour12: false })
+}
+
+function parseOptionalNumber(v: unknown): number | null {
+  if (v === undefined || v === null || v === '') return null
+  const n = Number(v)
+  return Number.isNaN(n) ? null : n
 }
 
 export default function DashboardDesignsPage() {
-  const [userNewSearchType, setUserNewSearchType] = useState('all')
-  const [userOldSearchType, setUserOldSearchType] = useState('all')
-  const [userNewSearchValue, setUserNewSearchValue] = useState('')
-  const [userOldSearchValue, setUserOldSearchValue] = useState('')
-  const [userHasSearch, setUserHasSearch] = useState(false)
-  const [userIsSort, setUserIsSort] = useState(false)
-  const [userSortConfig, setUserSortConfig] = useState<{
+  const [newSearchType, setNewSearchType] = useState('all')
+  const [oldSearchType, setOldSearchType] = useState('all')
+  const [newSearchValue, setNewSearchValue] = useState('')
+  const [oldSearchValue, setOldSearchValue] = useState('')
+  const [hasSearch, setHasSearch] = useState(false)
+
+  const [sortConfig, setSortConfig] = useState<{
     key: string
     order: 'asc' | 'desc' | null
-  }>({ key: '', order: null })
-  const [users, setUsers] = useState<UserRow[]>([])
-  const [usersLoading, setUsersLoading] = useState(false)
-  const [usersErr, setUsersErr] = useState<string | null>(null)
+  }>({ key: 'createdAt', order: 'desc' })
 
-  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null)
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  })
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [designs, setDesigns] = useState<DesignRow[]>([])
-  const [designsLoading, setDesignsLoading] = useState(false)
-  const [designsErr, setDesignsErr] = useState<string | null>(null)
-  const [designNewSearchType, setDesignNewSearchType] = useState('all')
-  const [designOldSearchType, setDesignOldSearchType] = useState('all')
-  const [designNewSearchValue, setDesignNewSearchValue] = useState('')
-  const [designOldSearchValue, setDesignOldSearchValue] = useState('')
-  const [designHasSearch, setDesignHasSearch] = useState(false)
-  const [designIsSort, setDesignIsSort] = useState(false)
-  const [designSortConfig, setDesignSortConfig] = useState<{
-    key: string
-    order: 'asc' | 'desc' | null
-  }>({ key: '', order: null })
+  const [saving, setSaving] = useState(false)
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<DesignRow | null>(null)
+  const [form] = Form.useForm<DesignFormValues>()
 
-  const [products, setProducts] = useState<ProductRow[]>([])
-  const [productsLoading, setProductsLoading] = useState(false)
-  const [productsErr, setProductsErr] = useState<string | null>(null)
-  const [productQ, setProductQ] = useState('')
-  const [selectedProductId, setSelectedProductId] = useState<string>('')
-  const [sequence, setSequence] = useState<ProductRow[]>([])
-
-  const [formTotalPrice, setFormTotalPrice] = useState('199')
-  const [formWristSize, setFormWristSize] = useState('15')
-  const [formWearingStyle, setFormWearingStyle] = useState<'single' | 'double'>(
-    'single'
-  )
-  const [formItemsJson, setFormItemsJson] = useState('')
-
-  const userQueryKey = useMemo(() => {
-    const sp = new URLSearchParams()
-    const q = (userHasSearch ? userNewSearchValue : userOldSearchValue).trim()
-    const field = (userHasSearch ? userNewSearchType : userOldSearchType).trim()
-    if (q) sp.set('q', q)
-    if (field && field !== 'all') sp.set('field', field)
-    if (userSortConfig.key && userSortConfig.order) sp.set('sort', `${userSortConfig.key}:${userSortConfig.order}`)
-    sp.set('page', '1')
-    sp.set('pageSize', '20')
-    return sp.toString()
-  }, [
-    userHasSearch,
-    userNewSearchValue,
-    userOldSearchValue,
-    userNewSearchType,
-    userOldSearchType,
-    userSortConfig.key,
-    userSortConfig.order,
-  ])
-
-  async function loadUsers() {
+  async function loadUserOptions(keyword = '') {
     setUsersLoading(true)
-    setUsersErr(null)
     try {
-      const res = await fetch(`/api/admin/users?${userQueryKey}`)
+      const sp = new URLSearchParams()
+      if (keyword.trim()) {
+        sp.set('q', keyword.trim())
+      }
+      sp.set('page', '1')
+      sp.set('pageSize', '30')
+      sp.set('sort', 'createdAt:desc')
+      const res = await fetch(`/api/admin/users?${sp.toString()}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setUsersErr(json?.error || `加载用户失败（${res.status}）`)
-        setUsers([])
+        message.error(json?.error || `加载用户失败（${res.status}）`)
         return
       }
-      setUsers(json?.users || [])
+      setUserOptions((json?.users || []) as UserOption[])
     } catch (e) {
-      setUsersErr(`加载用户失败：${String(e)}`)
-      setUsers([])
+      message.error(`加载用户失败：${String(e)}`)
     } finally {
       setUsersLoading(false)
     }
   }
 
-  async function loadProducts() {
-    setProductsLoading(true)
-    setProductsErr(null)
-    try {
-      const sp = new URLSearchParams()
-      if (productQ.trim()) sp.set('q', productQ.trim())
-      const res = await fetch(`/api/admin/products?${sp.toString()}`)
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setProductsErr(json?.error || `加载商品失败（${res.status}）`)
-        setProducts([])
-        return
-      }
-      const list = (json?.products || []) as ProductRow[]
-      setProducts(list)
-      if (!selectedProductId && list.length) {
-        setSelectedProductId(list[0].id)
-      }
-    } catch (e) {
-      setProductsErr(`加载商品失败：${String(e)}`)
-      setProducts([])
-    } finally {
-      setProductsLoading(false)
-    }
-  }
+  const queryKey = useMemo(() => {
+    const sp = new URLSearchParams()
+    const q = (hasSearch ? newSearchValue : oldSearchValue).trim()
+    const field = (hasSearch ? newSearchType : oldSearchType).trim()
+    if (q) sp.set('q', q)
+    if (field && field !== 'all') sp.set('field', field)
+    if (sortConfig.key && sortConfig.order) sp.set('sort', `${sortConfig.key}:${sortConfig.order}`)
+    sp.set('page', String(pagination.current))
+    sp.set('pageSize', String(pagination.pageSize))
+    return sp.toString()
+  }, [
+    hasSearch,
+    newSearchType,
+    oldSearchType,
+    newSearchValue,
+    oldSearchValue,
+    sortConfig.key,
+    sortConfig.order,
+    pagination.current,
+    pagination.pageSize,
+  ])
 
-  async function loadDesigns(userId: string) {
-    setDesignsLoading(true)
-    setDesignsErr(null)
+  async function load() {
+    setLoading(true)
+    setError(null)
     try {
-      const sp = new URLSearchParams()
-      const q = (designHasSearch ? designNewSearchValue : designOldSearchValue).trim()
-      const field = (designHasSearch ? designNewSearchType : designOldSearchType).trim()
-      if (q) sp.set('q', q)
-      if (field && field !== 'all') sp.set('field', field)
-      if (designSortConfig.key && designSortConfig.order) sp.set('sort', `${designSortConfig.key}:${designSortConfig.order}`)
-      const res = await fetch(`/api/admin/users/${userId}/designs?${sp.toString()}`)
+      const res = await fetch(`/api/admin/designs?${queryKey}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setDesignsErr(json?.error || `加载作品集失败（${res.status}）`)
+        setError(json?.error || `加载失败（${res.status}）`)
         setDesigns([])
         return
       }
       setDesigns(json?.designs || [])
+      setPagination((prev) => ({ ...prev, total: json?.total || 0 }))
     } catch (e) {
-      setDesignsErr(`加载作品集失败：${String(e)}`)
+      setError(`加载失败：${String(e)}`)
       setDesigns([])
     } finally {
-      setDesignsLoading(false)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadUsers()
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userQueryKey])
+  }, [queryKey])
 
-  useEffect(() => {
-    if (!selectedUser) return
-    void loadDesigns(selectedUser.id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    designHasSearch,
-    designNewSearchValue,
-    designOldSearchValue,
-    designNewSearchType,
-    designOldSearchType,
-    designSortConfig.key,
-    designSortConfig.order,
-    selectedUser?.id,
-  ])
+  const triggerSearch = () => {
+    setOldSearchType(newSearchType)
+    setOldSearchValue(newSearchValue)
+    setHasSearch(true)
+    setPagination((prev) => ({ ...prev, current: 1 }))
+  }
 
-  useEffect(() => {
-    void loadProducts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productQ])
-
-  const handleUserSort = (key: string) => {
-    setUserSortConfig((prev) => {
-      if (prev.key === key) return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
-      return { key, order: 'desc' }
+  const openCreate = () => {
+    setEditing(null)
+    void loadUserOptions()
+    form.setFieldsValue({
+      userId: '',
+      totalPrice: 0,
+      totalWeight: null,
+      averageDiameter: null,
+      wristSize: null,
+      wearingStyle: 'single',
+      itemsJson: '[]',
     })
-    setUserIsSort(true)
+    setModalOpen(true)
   }
 
-  useEffect(() => {
-    if (!userIsSort) return
-    void loadUsers()
-    setUserIsSort(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userIsSort])
-
-  const triggerUserSearch = () => {
-    setUserOldSearchValue(userNewSearchValue)
-    setUserOldSearchType(userNewSearchType)
-    if (userHasSearch) void loadUsers()
-    else setUserHasSearch(true)
-  }
-
-  const handleDesignSort = (key: string) => {
-    setDesignSortConfig((prev) => {
-      if (prev.key === key) return { key, order: prev.order === 'desc' ? 'asc' : 'desc' }
-      return { key, order: 'desc' }
+  const openEdit = (row: DesignRow) => {
+    setEditing(row)
+    void loadUserOptions(row.user?.nickname || row.userId || '')
+    setUserOptions((prev) => {
+      if (prev.some((u) => u.id === row.userId)) return prev
+      return [
+        { id: row.userId, nickname: row.user?.nickname || null, phone: row.user?.phone || null },
+        ...prev,
+      ]
     })
-    setDesignIsSort(true)
+    form.setFieldsValue({
+      userId: row.userId,
+      totalPrice: row.totalPrice,
+      totalWeight: row.totalWeight ?? null,
+      averageDiameter: row.averageDiameter ?? null,
+      wristSize: row.wristSize ?? null,
+      wearingStyle: row.wearingStyle || '',
+      itemsJson: JSON.stringify(Array.isArray(row.items) ? row.items : [], null, 2),
+    })
+    setModalOpen(true)
   }
 
-  useEffect(() => {
-    if (!designIsSort || !selectedUser) return
-    void loadDesigns(selectedUser.id)
-    setDesignIsSort(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [designIsSort, selectedUser?.id])
-
-  const triggerDesignSearch = () => {
-    setDesignOldSearchValue(designNewSearchValue)
-    setDesignOldSearchType(designNewSearchType)
-    if (designHasSearch && selectedUser) void loadDesigns(selectedUser.id)
-    else setDesignHasSearch(true)
-  }
-
-  const userSearchOptions = [
-    { label: '全部', value: 'all' },
-    { label: '用户ID', value: 'id' },
-    { label: '昵称', value: 'nickname' },
-    { label: '手机', value: 'phone' },
-    { label: '微信 openid', value: 'weixin_openid' },
-    { label: '邮箱', value: 'email' },
-    { label: '创建时间（输入日期）', value: 'createdAt' },
-    { label: '更新时间（输入日期）', value: 'updatedAt' },
-  ]
-
-  const designSearchOptions = [
-    { label: '全部', value: 'all' },
-    { label: '作品ID', value: 'id' },
-    { label: '创建时间（输入日期）', value: 'createdAt' },
-    { label: '更新时间（输入日期）', value: 'updatedAt' },
-    { label: '价格', value: 'totalPrice' },
-  ]
-
-  const userColumns = [
-    {
-      title: '用户',
-      key: 'user',
-      width: 260,
-      render: (_: any, u: UserRow) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{u.nickname || '-'}</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{u.id}</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>
-            {u.phone || '-'} {u.weixin_openid ? `· ${u.weixin_openid}` : ''}
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: userSortConfig.key === 'createdAt' ? 600 : 400,
-            color: userSortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleUserSort('createdAt')}
-        >
-          创建时间
-          {userSortConfig.key === 'createdAt' ? (
-            userSortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 190,
-      render: (t: string) => new Date(t).toLocaleString(),
-    },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: userSortConfig.key === 'updatedAt' ? 600 : 400,
-            color: userSortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleUserSort('updatedAt')}
-        >
-          更新时间
-          {userSortConfig.key === 'updatedAt' ? (
-            userSortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 190,
-      render: (t: string) => new Date(t).toLocaleString(),
-    },
-    {
-      title: '作品/订单',
-      key: 'counts',
-      width: 140,
-      render: (_: any, u: UserRow) => (
-        <span style={{ fontSize: 12, color: '#334155' }}>
-          作品 {u._count?.braceletDesigns ?? 0} · 订单 {u._count?.orders ?? 0}
-        </span>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right' as const,
-      width: 90,
-      render: (_: any, u: UserRow) => (
-        <Button
-          type="primary"
-          size="small"
-          loading={usersLoading}
-          icon={<CheckOutlined />}
-          onClick={async () => {
-            setSelectedUser(u)
-            await loadDesigns(u.id)
-          }}
-        >
-          选择
-        </Button>
-      ),
-    },
-  ]
-
-  const designColumns = [
-    { title: '作品ID', dataIndex: 'id', key: 'id', width: 240, render: (id: string) => <span style={{ fontWeight: 600 }}>{id}</span> },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: designSortConfig.key === 'totalPrice' ? 600 : 400,
-            color: designSortConfig.key === 'totalPrice' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleDesignSort('totalPrice')}
-        >
-          价格
-          {designSortConfig.key === 'totalPrice' ? (
-            designSortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'totalPrice',
-      key: 'totalPrice',
-      width: 120,
-      render: (v: number) => `¥${v}`,
-    },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: designSortConfig.key === 'createdAt' ? 600 : 400,
-            color: designSortConfig.key === 'createdAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleDesignSort('createdAt')}
-        >
-          创建时间
-          {designSortConfig.key === 'createdAt' ? (
-            designSortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 190,
-      render: (t: string) => new Date(t).toLocaleString(),
-    },
-    {
-      title: (
-        <span
-          style={{
-            cursor: 'pointer',
-            fontWeight: designSortConfig.key === 'updatedAt' ? 600 : 400,
-            color: designSortConfig.key === 'updatedAt' ? '#1677ff' : 'inherit',
-          }}
-          onClick={() => handleDesignSort('updatedAt')}
-        >
-          更新时间
-          {designSortConfig.key === 'updatedAt' ? (
-            designSortConfig.order === 'desc' ? (
-              <ArrowDownOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            ) : (
-              <ArrowUpOutlined style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }} />
-            )
-          ) : (
-            <ArrowDownOutlined style={{ marginLeft: 6, color: '#666', fontSize: 12 }} />
-          )}
-        </span>
-      ),
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 190,
-      render: (t: string) => new Date(t).toLocaleString(),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right' as const,
-      width: 90,
-      render: (_: any, d: DesignRow) => (
-        <Button
-          danger
-          size="small"
-          loading={designsLoading}
-          onClick={() => void deleteDesign(d.id)}
-          icon={<DeleteOutlined />}
-        >
-          删除
-        </Button>
-      ),
-    },
-  ]
-
-  async function createDesign() {
-    if (!selectedUser) return
-    const items: any[] = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
-    if (!items.length) {
-      alert('请先从下拉列表按顺序选择珠子，组成设计序列')
-      return
-    }
-
-    const totalPrice = Number(formTotalPrice)
-    if (Number.isNaN(totalPrice)) {
-      alert('totalPrice 必须是数字')
-      return
-    }
-    const wristSize = formWristSize.trim() ? Number(formWristSize) : null
-    if (formWristSize.trim() && Number.isNaN(Number(formWristSize))) {
-      alert('wristSize 必须是数字或留空')
-      return
-    }
-
-    setDesignsLoading(true)
-    setDesignsErr(null)
+  const submitForm = async () => {
+    const values = await form.validateFields()
+    let parsedItems: unknown
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/designs`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          items,
-          totalPrice,
-          wristSize,
-          wearingStyle: formWearingStyle,
-        }),
+      parsedItems = JSON.parse(values.itemsJson)
+    } catch {
+      message.error('items JSON 格式不正确')
+      return
+    }
+    if (!Array.isArray(parsedItems)) {
+      message.error('items 必须是数组')
+      return
+    }
+
+    const payload = {
+      userId: values.userId.trim(),
+      totalPrice: Number(values.totalPrice),
+      totalWeight: parseOptionalNumber(values.totalWeight),
+      averageDiameter: parseOptionalNumber(values.averageDiameter),
+      wristSize: parseOptionalNumber(values.wristSize),
+      wearingStyle: (values.wearingStyle || '').trim() || null,
+      items: parsedItems,
+    }
+
+    setSaving(true)
+    try {
+      const url = editing ? `/api/admin/designs/${editing.id}` : '/api/admin/designs'
+      const method = editing ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setDesignsErr(json?.error || `创建失败（${res.status}）`)
+        message.error(json?.error || `${editing ? '更新' : '创建'}失败（${res.status}）`)
         return
       }
-      await loadDesigns(selectedUser.id)
+      message.success(editing ? '更新成功' : '创建成功')
+      setModalOpen(false)
+      await load()
     } catch (e) {
-      setDesignsErr(`创建失败：${String(e)}`)
+      message.error(`${editing ? '更新' : '创建'}失败：${String(e)}`)
     } finally {
-      setDesignsLoading(false)
+      setSaving(false)
     }
   }
 
-  async function deleteDesign(designId: string) {
-    if (!selectedUser) return
-    const ok = confirm(`确认删除作品？\n\n作品ID：${designId}\n用户ID：${selectedUser.id}\n\n删除后不可恢复。`)
-    if (!ok) return
-
-    setDesignsLoading(true)
-    setDesignsErr(null)
+  const removeDesign = async (row: DesignRow) => {
     try {
-      const res = await fetch(
-        `/api/admin/users/${selectedUser.id}/designs/${designId}`,
-        {
-          method: 'DELETE',
-        }
-      )
+      const res = await fetch(`/api/admin/designs/${row.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setDesignsErr(json?.error || `删除失败（${res.status}）`)
+        message.error(json?.error || `删除失败（${res.status}）`)
         return
       }
-      await loadDesigns(selectedUser.id)
+      message.success('删除成功')
+      await load()
     } catch (e) {
-      setDesignsErr(`删除失败：${String(e)}`)
-    } finally {
-      setDesignsLoading(false)
+      message.error(`删除失败：${String(e)}`)
     }
   }
 
+  const columns: ColumnsType<DesignRow> = [
+    {
+      title: '作品ID',
+      dataIndex: 'id',
+      width: 240,
+      render: (id: string) => (
+        <Typography.Text style={{ maxWidth: 220 }} ellipsis={{ tooltip: id }}>
+          {id}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: '用户',
+      key: 'user',
+      width: 280,
+      render: (_, row) => (
+        <div>
+          <div>{row.user?.nickname || '-'}</div>
+          <Typography.Text style={{ maxWidth: 260 }} ellipsis={{ tooltip: row.userId }}>
+            {row.userId}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: '总价',
+      dataIndex: 'totalPrice',
+      width: 110,
+      sorter: true,
+      render: (v) => `¥${String(v)}`,
+    },
+    {
+      title: '手围',
+      dataIndex: 'wristSize',
+      width: 100,
+      sorter: true,
+      render: (v) => (v === null || v === undefined ? '-' : String(v)),
+    },
+    {
+      title: '佩戴方式',
+      dataIndex: 'wearingStyle',
+      width: 110,
+      render: (v) => v || '-',
+    },
+    {
+      title: '珠子数量',
+      dataIndex: 'items',
+      width: 110,
+      render: (items) => (Array.isArray(items) ? items.length : 0),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      width: 180,
+      sorter: true,
+      render: (v) => formatTime(v),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      width: 180,
+      sorter: true,
+      render: (v) => formatTime(v),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      fixed: 'right',
+      width: 170,
+      render: (_, row) => (
+        <Space size={8} wrap>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
+            编辑
+          </Button>
+          <Popconfirm title="确认删除该作品？" onConfirm={() => void removeDesign(row)} okText="删除" cancelText="取消">
+            <Button size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <Typography.Title level={4} style={{ margin: 0 }}>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
           作品集管理
         </Typography.Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          新增作品
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="font-medium text-zinc-900">选择用户</div>
-          </div>
-
-          <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} size={10}>
-            <Space.Compact style={{ width: '100%' }}>
-              <Select
-                value={userNewSearchType}
-                onChange={setUserNewSearchType}
-                style={{ width: 160 }}
-                options={userSearchOptions}
-              />
-              <Input
-                placeholder="输入关键字或日期（如 2026-03-17）"
-                value={userNewSearchValue}
-                onChange={(e) => {
-                  setUserNewSearchValue(e.target.value)
-                  setUserHasSearch(false)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') triggerUserSearch()
-                }}
-              />
-              <Button type="primary" onClick={triggerUserSearch} icon={<SearchOutlined />}>
-                搜索
-              </Button>
-            </Space.Compact>
-          </Space>
-
-          {usersErr ? (
-            <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-              {usersErr}
-            </div>
-          ) : null}
-
-          <Table
-            columns={userColumns as any}
-            dataSource={users}
-            rowKey="id"
-            size="small"
-            pagination={false}
-            loading={{ spinning: usersLoading, tip: '加载中...' }}
-            scroll={{ x: 'max-content', y: 420 }}
-            rowClassName={(u: UserRow) => (selectedUser?.id === u.id ? 'ant-table-row-selected' : '')}
+      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Space.Compact style={{ width: 520 }}>
+          <Select
+            value={newSearchType}
+            onChange={(v) => setNewSearchType(v)}
+            options={[
+              { value: 'all', label: '全部字段' },
+              { value: 'id', label: '作品ID' },
+              { value: 'userId', label: '用户ID' },
+              { value: 'wearingStyle', label: '佩戴方式' },
+              { value: 'totalPrice', label: '总价' },
+            ]}
+            style={{ width: 170 }}
           />
-        </div>
-
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="font-medium text-zinc-900">
-              {selectedUser ? `为用户新增作品：${selectedUser.nickname || selectedUser.id}` : '为用户新增作品'}
-            </div>
-            <button
-              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-              type="button"
-              onClick={() => selectedUser && loadDesigns(selectedUser.id)}
-              disabled={!selectedUser || designsLoading}
-            >
-              刷新作品
-            </button>
-          </div>
-
-          {!selectedUser ? (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-              先在左侧选择一个用户。
-            </div>
-          ) : (
-            <>
-              {designsErr ? (
-                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                  {designsErr}
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-1 gap-3">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <label className="text-sm text-zinc-700">
-                    totalPrice
-                    <input
-                      className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                      value={formTotalPrice}
-                      onChange={(e) => setFormTotalPrice(e.target.value)}
-                    />
-                  </label>
-                  <label className="text-sm text-zinc-700">
-                    wristSize（可空）
-                    <input
-                      className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                      value={formWristSize}
-                      onChange={(e) => setFormWristSize(e.target.value)}
-                    />
-                  </label>
-                  <label className="text-sm text-zinc-700">
-                    wearingStyle
-                    <select
-                      className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                      value={formWearingStyle}
-                      onChange={(e) =>
-                        setFormWearingStyle(e.target.value as 'single' | 'double')
-                      }
-                    >
-                      <option value="single">single</option>
-                      <option value="double">double</option>
-                    </select>
-                  </label>
-                </div>
-
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-medium text-zinc-900">
-                      从商品表选择珠子（按顺序）
-                    </div>
-                    <button
-                      className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                      type="button"
-                      onClick={() => loadProducts()}
-                      disabled={productsLoading}
-                    >
-                      刷新商品
-                    </button>
-                  </div>
-
-                  {productsErr ? (
-                    <div className="mb-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
-                      {productsErr}
-                    </div>
-                  ) : null}
-
-                  <label className="mb-2 block text-xs text-zinc-700">
-                    搜索商品（title / 物料编号 / diameter）
-                    <input
-                      className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                      value={productQ}
-                      onChange={(e) => setProductQ(e.target.value)}
-                      placeholder="例如：紫水晶 / spacer / 6mm"
-                    />
-                  </label>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <select
-                      className="w-full flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-                      value={selectedProductId}
-                      onChange={(e) => setSelectedProductId(e.target.value)}
-                    >
-                      {(products || []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title} · {p.materialCode || p.diameter || '-'} · ¥{String(p.price)}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-                      type="button"
-                      disabled={!selectedProductId}
-                      onClick={() => {
-                        const p = products.find((x) => x.id === selectedProductId)
-                        if (!p) return
-                        setSequence((s) => [...s, p])
-                      }}
-                    >
-                      添加到序列（+1 颗）
-                    </button>
-                    <button
-                      className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                      type="button"
-                      disabled={!sequence.length}
-                      onClick={() => setSequence([])}
-                    >
-                      清空序列
-                    </button>
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2">
-                    <div className="mb-2 text-xs font-medium text-zinc-700">
-                      当前序列（从左到右即保存顺序）
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {sequence.map((p, i) => (
-                        <div
-                          key={`${p.id}_${i}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-800"
-                        >
-                          <span className="font-medium">{i + 1}.</span>
-                          <span>{p.title}</span>
-                          <button
-                            className="ml-1 rounded-full border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-50"
-                            type="button"
-                            onClick={() => {
-                              setSequence((s) => s.filter((_, idx) => idx !== i))
-                            }}
-                            title="删除这颗"
-                          >
-                            删除
-                          </button>
-                          <button
-                            className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                            type="button"
-                            disabled={i === 0}
-                            onClick={() => {
-                              setSequence((s) => {
-                                const next = [...s]
-                                const tmp = next[i - 1]
-                                next[i - 1] = next[i]
-                                next[i] = tmp
-                                return next
-                              })
-                            }}
-                            title="上移"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                            type="button"
-                            disabled={i === sequence.length - 1}
-                            onClick={() => {
-                              setSequence((s) => {
-                                const next = [...s]
-                                const tmp = next[i + 1]
-                                next[i + 1] = next[i]
-                                next[i] = tmp
-                                return next
-                              })
-                            }}
-                            title="下移"
-                          >
-                            ↓
-                          </button>
-                        </div>
-                      ))}
-                      {!sequence.length ? (
-                        <div className="text-xs text-zinc-500">还没选择任何珠子</div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* 保留一个只读 items JSON 预览，方便你复制/检查 */}
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-xs text-zinc-600">
-                      查看生成的 items JSON（只读）
-                    </summary>
-                    <textarea
-                      className="mt-2 h-36 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 font-mono text-xs outline-none"
-                      readOnly
-                      value={(() => {
-                        try {
-                          const items = sequence.map((p, idx) => braceletItemFromProductRow(p, idx))
-                          return JSON.stringify(items, null, 2)
-                        } catch {
-                          return ''
-                        }
-                      })()}
-                    />
-                  </details>
-                </div>
-
-                <button
-                  className="inline-flex items-center justify-center rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-                  type="button"
-                  disabled={designsLoading}
-                  onClick={() => void createDesign()}
-                >
-                  新增作品（写入该用户作品集）
-                </button>
-              </div>
-
-              <div className="mt-5">
-                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm font-medium text-zinc-900">该用户现有作品</div>
-                  <Space.Compact style={{ width: 420 }}>
-                    <Select
-                      value={designNewSearchType}
-                      onChange={setDesignNewSearchType}
-                      style={{ width: 160 }}
-                      options={designSearchOptions}
-                    />
-                    <Input
-                      placeholder="请输入关键词"
-                      value={designNewSearchValue}
-                      onChange={(e) => {
-                        setDesignNewSearchValue(e.target.value)
-                        setDesignHasSearch(false)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') triggerDesignSearch()
-                      }}
-                    />
-                    <Button type="primary" onClick={triggerDesignSearch} icon={<SearchOutlined />}>
-                      搜索
-                    </Button>
-                  </Space.Compact>
-                </div>
-                <Table
-                  columns={designColumns as any}
-                  dataSource={designs}
-                  rowKey="id"
-                  size="small"
-                  pagination={false}
-                  loading={{ spinning: designsLoading, tip: '加载中...' }}
-                  scroll={{ x: 'max-content', y: 260 }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+          <Input
+            value={newSearchValue}
+            onChange={(e) => setNewSearchValue(e.target.value)}
+            placeholder="输入关键词"
+            onPressEnter={triggerSearch}
+            allowClear
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={triggerSearch}>
+            搜索
+          </Button>
+        </Space.Compact>
       </div>
+
+      {error ? (
+        <Typography.Text type="danger" style={{ display: 'block', marginTop: 12 }}>
+          {error}
+        </Typography.Text>
+      ) : null}
+
+      <div style={{ marginTop: 16 }}>
+        <Table<DesignRow>
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={designs}
+          scroll={{ x: 1700 }}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (t) => `共 ${t} 条`,
+          }}
+          onChange={(p, _, sorter: any) => {
+            const nextSort = Array.isArray(sorter) ? sorter[0] : sorter
+            const field = String(nextSort?.field || '')
+            const order =
+              nextSort?.order === 'ascend'
+                ? 'asc'
+                : nextSort?.order === 'descend'
+                  ? 'desc'
+                  : null
+            if (field && order) {
+              setSortConfig({ key: field, order })
+            } else {
+              setSortConfig({ key: 'createdAt', order: 'desc' })
+            }
+            setPagination((prev) => ({
+              ...prev,
+              current: p.current || 1,
+              pageSize: p.pageSize || prev.pageSize,
+            }))
+          }}
+        />
+      </div>
+
+      <Modal
+        title={editing ? '编辑作品' : '新增作品'}
+        open={modalOpen}
+        onOk={() => void submitForm()}
+        onCancel={() => setModalOpen(false)}
+        confirmLoading={saving}
+        okText={editing ? '保存' : '创建'}
+        cancelText="取消"
+        width={760}
+      >
+        <Form<DesignFormValues> form={form} layout="vertical">
+          <Form.Item name="userId" label="用户" rules={[{ required: true, message: '请选择用户' }]}>
+            <Select
+              showSearch
+              placeholder="请选择用户（可搜索昵称/手机号/ID）"
+              filterOption={false}
+              onSearch={(value) => {
+                void loadUserOptions(value)
+              }}
+              loading={usersLoading}
+              options={userOptions.map((u) => ({
+                value: u.id,
+                label: `${u.nickname || '未命名用户'} · ${u.phone || '-'} · ${u.id}`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="totalPrice" label="总价" rules={[{ required: true, message: '请输入总价' }]}>
+            <Input type="number" min={0} />
+          </Form.Item>
+          <Form.Item name="wearingStyle" label="佩戴方式">
+            <Select
+              allowClear
+              options={[
+                { value: 'single', label: 'single' },
+                { value: 'double', label: 'double' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="wristSize" label="手围（可空）">
+            <Input type="number" />
+          </Form.Item>
+          <Form.Item name="totalWeight" label="总重（可空）">
+            <Input type="number" />
+          </Form.Item>
+          <Form.Item name="averageDiameter" label="平均粒径（可空）">
+            <Input type="number" />
+          </Form.Item>
+          <Form.Item
+            name="itemsJson"
+            label="items JSON（数组）"
+            rules={[{ required: true, message: '请输入 items JSON' }]}
+          >
+            <Input.TextArea rows={10} placeholder='例如：[{"productId":"xxx","name":"紫水晶","price":99}]' />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
