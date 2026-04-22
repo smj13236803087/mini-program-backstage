@@ -10,6 +10,7 @@ type AtlasRow = {
   imageUrl: string | null
   majorCategory: string | null
   coreEnergyTag: string | null
+  energyAnalysis: string | null
   mineVeinTrace: string | null
   materialTrace: string | null
   visualFeatures: string | null
@@ -105,6 +106,7 @@ export default function DashboardProductAtlasPage() {
     { label: '商品名', value: 'title' },
     { label: '大分类', value: 'majorCategory' },
     { label: '核心能量标签', value: 'coreEnergyTag' },
+    { label: '能量解析', value: 'energyAnalysis' },
   ]
 
   const columns = [
@@ -130,6 +132,7 @@ export default function DashboardProductAtlasPage() {
     { title: '商品名', dataIndex: 'title', key: 'title', width: 180, render: (v: string) => v || '-' },
     { title: '大分类', dataIndex: 'majorCategory', key: 'majorCategory', width: 120, render: (v: string | null) => v || '-' },
     { title: '核心能量标签', dataIndex: 'coreEnergyTag', key: 'coreEnergyTag', width: 220, render: (v: string | null) => v || '-' },
+    { title: '能量解析', dataIndex: 'energyAnalysis', key: 'energyAnalysis', width: 260, render: (v: string | null) => v || '-' },
     { title: '矿脉溯源', dataIndex: 'mineVeinTrace', key: 'mineVeinTrace', width: 220, render: (v: string | null) => v || '-' },
     { title: '材质溯源', dataIndex: 'materialTrace', key: 'materialTrace', width: 220, render: (v: string | null) => v || '-' },
     { title: '视觉特征', dataIndex: 'visualFeatures', key: 'visualFeatures', width: 220, render: (v: string | null) => v || '-' },
@@ -179,6 +182,7 @@ export default function DashboardProductAtlasPage() {
       imageUrl: row.imageUrl || '',
       majorCategory: row.majorCategory || '',
       coreEnergyTag: row.coreEnergyTag || '',
+      energyAnalysis: row.energyAnalysis || '',
       mineVeinTrace: row.mineVeinTrace || '',
       materialTrace: row.materialTrace || '',
       visualFeatures: row.visualFeatures || '',
@@ -198,6 +202,7 @@ export default function DashboardProductAtlasPage() {
       imageUrl: (values.imageUrl || '').trim() || null,
       majorCategory: (values.majorCategory || '').trim() || null,
       coreEnergyTag: (values.coreEnergyTag || '').trim() || null,
+      energyAnalysis: (values.energyAnalysis || '').trim() || null,
       mineVeinTrace: (values.mineVeinTrace || '').trim() || null,
       materialTrace: (values.materialTrace || '').trim() || null,
       visualFeatures: (values.visualFeatures || '').trim() || null,
@@ -407,6 +412,9 @@ export default function DashboardProductAtlasPage() {
           </Form.Item>
           <Form.Item name="coreEnergyTag" label="核心能量标签">
             <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="energyAnalysis" label="能量解析">
+            <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="mineVeinTrace" label="矿脉溯源">
             <Input.TextArea rows={2} />

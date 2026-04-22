@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
     if (field === 'title') return { title: { contains: q } }
     if (field === 'majorCategory') return { majorCategory: { contains: q } }
     if (field === 'coreEnergyTag') return { coreEnergyTag: { contains: q } }
+    if (field === 'energyAnalysis') return { energyAnalysis: { contains: q } }
     return {
       OR: [
         { title: { contains: q } },
         { majorCategory: { contains: q } },
         { coreEnergyTag: { contains: q } },
+        { energyAnalysis: { contains: q } },
         { mineVeinTrace: { contains: q } },
         { materialTrace: { contains: q } },
         { visualFeatures: { contains: q } },
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
         imageUrl: true,
         majorCategory: true,
         coreEnergyTag: true,
+        energyAnalysis: true,
         mineVeinTrace: true,
         materialTrace: true,
         visualFeatures: true,
@@ -75,6 +78,7 @@ export async function POST(req: NextRequest) {
         imageUrl?: string | null
         majorCategory?: string | null
         coreEnergyTag?: string | null
+        energyAnalysis?: string | null
         mineVeinTrace?: string | null
         materialTrace?: string | null
         visualFeatures?: string | null
@@ -122,6 +126,7 @@ export async function POST(req: NextRequest) {
           imageUrl: body.imageUrl?.trim() || null,
           majorCategory: body.majorCategory?.trim() || null,
           coreEnergyTag: body.coreEnergyTag?.trim() || null,
+          energyAnalysis: body.energyAnalysis?.trim() || null,
           mineVeinTrace: body.mineVeinTrace?.trim() || null,
           materialTrace: body.materialTrace?.trim() || null,
           visualFeatures: body.visualFeatures?.trim() || null,
@@ -137,6 +142,7 @@ export async function POST(req: NextRequest) {
           imageUrl: true,
           majorCategory: true,
           coreEnergyTag: true,
+          energyAnalysis: true,
           mineVeinTrace: true,
           materialTrace: true,
           visualFeatures: true,

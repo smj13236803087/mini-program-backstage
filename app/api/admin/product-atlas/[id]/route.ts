@@ -13,6 +13,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         imageUrl?: string | null
         majorCategory?: string | null
         coreEnergyTag?: string | null
+        energyAnalysis?: string | null
         mineVeinTrace?: string | null
         materialTrace?: string | null
         visualFeatures?: string | null
@@ -41,6 +42,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl?.trim() || null } : {}),
       ...(body.majorCategory !== undefined ? { majorCategory: body.majorCategory?.trim() || null } : {}),
       ...(body.coreEnergyTag !== undefined ? { coreEnergyTag: body.coreEnergyTag?.trim() || null } : {}),
+      ...(body.energyAnalysis !== undefined ? { energyAnalysis: body.energyAnalysis?.trim() || null } : {}),
       ...(body.mineVeinTrace !== undefined ? { mineVeinTrace: body.mineVeinTrace?.trim() || null } : {}),
       ...(body.materialTrace !== undefined ? { materialTrace: body.materialTrace?.trim() || null } : {}),
       ...(body.visualFeatures !== undefined ? { visualFeatures: body.visualFeatures?.trim() || null } : {}),
@@ -58,6 +60,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       imageUrl: true,
       majorCategory: true,
       coreEnergyTag: true,
+      energyAnalysis: true,
       mineVeinTrace: true,
       materialTrace: true,
       visualFeatures: true,

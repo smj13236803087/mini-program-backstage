@@ -30,6 +30,8 @@ model ProductAtlas {
   materialTrace String? @db.Text
   /// 视觉特征
   visualFeatures String? @db.Text
+  /// 能量解析
+  energyAnalysis String? @db.Text
   /// 经典六维（JSON 或长文本）
   classicSixDimensions String? @db.Text
   /// 生肖
