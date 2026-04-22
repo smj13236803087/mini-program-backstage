@@ -20,6 +20,11 @@ export async function GET() {
         materialCode: true,
         price: true,
         diameter: true,
+        inventory: {
+          select: {
+            quantity: true,
+          },
+        },
         atlas: {
           select: {
             title: true,
@@ -28,6 +33,7 @@ export async function GET() {
             colorSeries: true,
             coreEnergyTag: true,
             classicSixDimensions: true,
+            energyAnalysis: true,
             mineVeinTrace: true,
             materialTrace: true,
             visualFeatures: true,
@@ -65,9 +71,11 @@ export async function GET() {
         color,
         colorSeries: atlas?.colorSeries || '',
         imageUrl: atlas?.imageUrl || null,
+        stock: Number(p?.inventory?.quantity ?? 0),
         // 预留：前端可直接展示
         coreEnergyTag: atlas?.coreEnergyTag || null,
         classicSixDimensions: atlas?.classicSixDimensions || null,
+        energyAnalysis: atlas?.energyAnalysis || null,
         mineVeinTrace: atlas?.mineVeinTrace || null,
         materialTrace: atlas?.materialTrace || null,
         visualFeatures: atlas?.visualFeatures || null,
