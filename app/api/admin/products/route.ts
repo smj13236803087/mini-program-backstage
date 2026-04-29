@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
           { atlas: { is: { majorCategory: { contains: q } } } },
           { materialCode: { contains: q } },
           { diameter: { contains: q } },
+          { horizontalLength: { contains: q } },
           ...(dayRange
             ? [
                 { createdAt: { gte: dayRange.gte, lt: dayRange.lt } },
@@ -64,7 +65,8 @@ export async function GET(req: NextRequest) {
       field === 'title' ||
       field === 'materialCode' ||
       field === 'majorCategory' ||
-      field === 'diameter'
+      field === 'diameter' ||
+      field === 'horizontalLength'
     ) {
       if (field === 'title') {
         andParts.push({ atlas: { is: { title: { contains: q } } } })
@@ -81,6 +83,7 @@ export async function GET(req: NextRequest) {
           { atlas: { is: { majorCategory: { contains: q } } } },
           { materialCode: { contains: q } },
           { diameter: { contains: q } },
+          { horizontalLength: { contains: q } },
         ],
       })
     }
@@ -111,6 +114,7 @@ export async function GET(req: NextRequest) {
         materialCode: true,
         price: true,
         diameter: true,
+        horizontalLength: true,
         weight: true,
         inventory: { select: { quantity: true } },
         atlas: {
@@ -118,6 +122,7 @@ export async function GET(req: NextRequest) {
             title: true,
             majorCategory: true,
             imageUrl: true,
+            realImages: true,
             colorSeries: true,
             coreEnergyTag: true,
             mineVeinTrace: true,
@@ -141,6 +146,7 @@ export async function GET(req: NextRequest) {
     title: p.atlas?.title ?? '',
     majorCategory: p.atlas?.majorCategory ?? null,
     imageUrl: p.atlas?.imageUrl ?? null,
+    realImages: (p.atlas as any)?.realImages ?? null,
     colorSeries: p.atlas?.colorSeries ?? null,
     coreEnergyTag: p.atlas?.coreEnergyTag ?? null,
     mineVeinTrace: p.atlas?.mineVeinTrace ?? null,
@@ -168,6 +174,7 @@ export async function POST(req: NextRequest) {
         price?: number | string
         stock?: number | string
         diameter?: string | null
+        horizontalLength?: string | null
         weight?: string | null
       }
     | null
@@ -202,8 +209,9 @@ export async function POST(req: NextRequest) {
   }
 
   const diameter = String(body.diameter ?? '').trim()
-  if (!diameter) {
-    return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
+  const horizontalLength = String(body.horizontalLength ?? '').trim()
+  if (!diameter && !horizontalLength) {
+    return NextResponse.json({ error: '直径/横长 至少填写一个' }, { status: 400 })
   }
 
   const created = await prisma.product.create({
@@ -211,7 +219,8 @@ export async function POST(req: NextRequest) {
       materialCode,
       atlasId,
       price: String(priceNum.toFixed(2)),
-      diameter,
+      diameter: diameter || null,
+      horizontalLength: horizontalLength || null,
       weight: body.weight ?? null,
       inventory: { create: { quantity: stockNum } },
     },
@@ -226,8 +235,10 @@ export async function POST(req: NextRequest) {
         title: created.atlas?.title ?? '',
         price: created.price,
         diameter: created.diameter,
+        horizontalLength: (created as any).horizontalLength ?? null,
         weight: created.weight,
         imageUrl: created.atlas?.imageUrl ?? null,
+        realImages: (created.atlas as any)?.realImages ?? null,
         majorCategory: created.atlas?.majorCategory ?? null,
         colorSeries: created.atlas?.colorSeries ?? null,
         coreEnergyTag: created.atlas?.coreEnergyTag ?? null,

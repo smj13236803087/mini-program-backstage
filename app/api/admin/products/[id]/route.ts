@@ -17,6 +17,7 @@ export async function PATCH(
         price?: number | string
         stock?: number | string
         imageUrl?: string | null
+        realImages?: unknown
         majorCategory?: string | null
         colorSeries?: string | null
         coreEnergyTag?: string | null
@@ -29,6 +30,7 @@ export async function PATCH(
         constellation?: string | null
         chakra?: string | null
         diameter?: string | null
+        horizontalLength?: string | null
         weight?: string | null
       }
     | null
@@ -37,13 +39,14 @@ export async function PATCH(
     return NextResponse.json({ error: '请求体不能为空' }, { status: 400 })
   }
 
-  const exists = await prisma.product.findUnique({
+  const exists = await (prisma as any).product.findUnique({
     where: { id },
     select: {
       id: true,
       atlasId: true,
       materialCode: true,
       diameter: true,
+      horizontalLength: true,
       atlas: { select: { title: true, majorCategory: true } },
     },
   })
@@ -84,6 +87,18 @@ export async function PATCH(
     atlasData.majorCategory = v
   }
   if (body.imageUrl !== undefined) atlasData.imageUrl = body.imageUrl
+  if (body.realImages !== undefined) {
+    atlasData.realImages = (() => {
+      const v = body.realImages
+      if (v === null || v === undefined) return null
+      if (Array.isArray(v)) {
+        const out = v.map((x) => String(x ?? '').trim()).filter(Boolean)
+        return out.length ? out : null
+      }
+      const s = String(v).trim()
+      return s ? s : null
+    })()
+  }
   if (body.colorSeries !== undefined) atlasData.colorSeries = body.colorSeries?.trim() || null
   if (body.coreEnergyTag !== undefined) atlasData.coreEnergyTag = body.coreEnergyTag?.trim() || null
   if (body.mineVeinTrace !== undefined) atlasData.mineVeinTrace = body.mineVeinTrace?.trim() || null
@@ -96,21 +111,24 @@ export async function PATCH(
   if (body.constellation !== undefined) atlasData.constellation = body.constellation?.trim() || null
   if (body.chakra !== undefined) atlasData.chakra = body.chakra?.trim() || null
   if (body.diameter !== undefined) {
-    const v = String(body.diameter ?? '').trim()
-    if (!v) return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
-    data.diameter = v
+    data.diameter = String(body.diameter ?? '').trim() || null
+  }
+  if (body.horizontalLength !== undefined) {
+    data.horizontalLength = String(body.horizontalLength ?? '').trim() || null
   }
   if (body.weight !== undefined) data.weight = body.weight
 
   const mergedMaterialCode =
     data.materialCode !== undefined ? data.materialCode : exists.materialCode
   const mergedDiameter = data.diameter !== undefined ? data.diameter : exists.diameter
+  const mergedHorizontalLength =
+    data.horizontalLength !== undefined ? data.horizontalLength : exists.horizontalLength
 
   if (!String(mergedMaterialCode ?? '').trim()) {
     return NextResponse.json({ error: '物料编号不能为空' }, { status: 400 })
   }
-  if (!String(mergedDiameter ?? '').trim()) {
-    return NextResponse.json({ error: '直径不能为空' }, { status: 400 })
+  if (!String(mergedDiameter ?? '').trim() && !String(mergedHorizontalLength ?? '').trim()) {
+    return NextResponse.json({ error: '直径/横长 至少填写一个' }, { status: 400 })
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -124,7 +142,7 @@ export async function PATCH(
     let nextAtlasId = exists.atlasId || null
     if (nextTitle) {
       const majorCategoryKey = nextMajorCategory ?? ''
-      const atlas = await tx.productAtlas.upsert({
+      const atlas = await (tx as any).productAtlas.upsert({
         where: { title_majorCategory: { title: nextTitle, majorCategory: majorCategoryKey } },
         create: {
           title: nextTitle,
@@ -138,7 +156,7 @@ export async function PATCH(
       nextAtlasId = atlas.id
     }
 
-    const sku = await tx.product.update({
+    const sku = await (tx as any).product.update({
       where: { id },
       data: { ...data, atlasId: nextAtlasId },
       include: { inventory: { select: { quantity: true } }, atlas: true },
@@ -163,8 +181,10 @@ export async function PATCH(
         title: updated.atlas?.title ?? '',
         price: updated.price,
         diameter: updated.diameter,
+        horizontalLength: (updated as any).horizontalLength ?? null,
         weight: updated.weight,
         imageUrl: updated.atlas?.imageUrl ?? null,
+        realImages: (updated.atlas as any)?.realImages ?? null,
         majorCategory: updated.atlas?.majorCategory ?? null,
         colorSeries: updated.atlas?.colorSeries ?? null,
         coreEnergyTag: updated.atlas?.coreEnergyTag ?? null,

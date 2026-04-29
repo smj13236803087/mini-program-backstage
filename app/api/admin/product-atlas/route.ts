@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
         id: true,
         title: true,
         imageUrl: true,
+        realImages: true,
         majorCategory: true,
         coreEnergyTag: true,
         energyAnalysis: true,
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
     | {
         title?: string
         imageUrl?: string | null
+        realImages?: unknown
         majorCategory?: string | null
         coreEnergyTag?: string | null
         energyAnalysis?: string | null
@@ -101,6 +103,19 @@ export async function POST(req: NextRequest) {
   const title = (body.title || '').trim()
   if (!title) return NextResponse.json({ error: '商品名不能为空' }, { status: 400 })
 
+  const parseRealImages = (
+    v: unknown
+  ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined => {
+    if (v === undefined) return undefined
+    if (v === null) return Prisma.JsonNull
+    if (Array.isArray(v)) {
+      const out = v.map((x) => String(x ?? '').trim()).filter(Boolean)
+      return out.length ? out : Prisma.JsonNull
+    }
+    const s = String(v).trim()
+    return s ? s : Prisma.JsonNull
+  }
+
   const parse01 = (v: unknown): string | null => {
     if (v === null || v === undefined) return null
     const s0 = String(v).trim()
@@ -124,6 +139,7 @@ export async function POST(req: NextRequest) {
         data: {
           title,
           imageUrl: body.imageUrl?.trim() || null,
+          realImages: parseRealImages(body.realImages),
           majorCategory: body.majorCategory?.trim() || null,
           coreEnergyTag: body.coreEnergyTag?.trim() || null,
           energyAnalysis: body.energyAnalysis?.trim() || null,
@@ -140,6 +156,7 @@ export async function POST(req: NextRequest) {
           id: true,
           title: true,
           imageUrl: true,
+          realImages: true,
           majorCategory: true,
           coreEnergyTag: true,
           energyAnalysis: true,

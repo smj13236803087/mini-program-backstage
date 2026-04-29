@@ -17,6 +17,8 @@ model ProductAtlas {
   /// 物料名称（图鉴主标题）
   title String
   imageUrl String?
+  /// 实物图
+  realImages Json?
   /// 大分类（用于图鉴展示/筛选；商品 SKU 通过关联图鉴继承展示）
   majorCategory String?
   /// 色系 / 色系归属（支持 #RRGGBB 或文字）
@@ -89,6 +91,8 @@ model Product {
 
   price Decimal @db.Decimal(10, 2) // 基础单价（元）
   diameter String?
+  /// 横长
+  horizontalLength String?
   weight String?
 
   inventory Inventory?
@@ -145,7 +149,6 @@ enum InventoryLogType {
   SALE       // 销售
   ADJUST     // 人工调整
 }
-
 
 model User {
   id             String    @id @default(cuid())

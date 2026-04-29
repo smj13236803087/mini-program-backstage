@@ -30,6 +30,7 @@ export async function GET() {
             title: true,
             majorCategory: true,
             imageUrl: true,
+            realImages: true,
             colorSeries: true,
             coreEnergyTag: true,
             classicSixDimensions: true,
@@ -55,7 +56,7 @@ export async function GET() {
     const materials = (products as any[]).map((p: any) => {
       const atlas = (p as any).atlas || null
       const color = productDisplayColor(atlas || {})
-      const size = (p.diameter || '').trim()
+      const size = (p.diameter || p.horizontalLength || '').trim()
 
       // 小程序目前只用到 id/name/color/size（以及后续可能扩展 energy 标签）
       const six = atlas?.sixDimensions || null
@@ -71,6 +72,7 @@ export async function GET() {
         color,
         colorSeries: atlas?.colorSeries || '',
         imageUrl: atlas?.imageUrl || null,
+        realImages: (atlas as any)?.realImages ?? null,
         stock: Number(p?.inventory?.quantity ?? 0),
         // 预留：前端可直接展示
         coreEnergyTag: atlas?.coreEnergyTag || null,

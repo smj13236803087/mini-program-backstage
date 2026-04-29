@@ -11,6 +11,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     | {
         title?: string
         imageUrl?: string | null
+        realImages?: unknown
         majorCategory?: string | null
         coreEnergyTag?: string | null
         energyAnalysis?: string | null
@@ -35,11 +36,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: '商品名不能为空' }, { status: 400 })
   }
 
-  const updated = await prisma.productAtlas.update({
+  const parseRealImages = (v: unknown): string | string[] | null => {
+    if (v === null || v === undefined) return null
+    if (Array.isArray(v)) {
+      const out = v.map((x) => String(x ?? '').trim()).filter(Boolean)
+      return out.length ? out : null
+    }
+    const s = String(v).trim()
+    return s ? s : null
+  }
+
+  const updated = await (prisma as any).productAtlas.update({
     where: { id },
     data: {
       ...(title !== undefined ? { title } : {}),
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl?.trim() || null } : {}),
+      ...(body.realImages !== undefined ? { realImages: parseRealImages(body.realImages) } : {}),
       ...(body.majorCategory !== undefined ? { majorCategory: body.majorCategory?.trim() || null } : {}),
       ...(body.coreEnergyTag !== undefined ? { coreEnergyTag: body.coreEnergyTag?.trim() || null } : {}),
       ...(body.energyAnalysis !== undefined ? { energyAnalysis: body.energyAnalysis?.trim() || null } : {}),
@@ -58,6 +70,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       id: true,
       title: true,
       imageUrl: true,
+      realImages: true,
       majorCategory: true,
       coreEnergyTag: true,
       energyAnalysis: true,
