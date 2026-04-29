@@ -8,6 +8,7 @@ type AtlasRow = {
   id: string
   title: string
   imageUrl: string | null
+  realImages: unknown
   majorCategory: string | null
   coreEnergyTag: string | null
   energyAnalysis: string | null
@@ -52,6 +53,21 @@ export default function DashboardProductAtlasPage() {
   const [editing, setEditing] = useState<AtlasRow | null>(null)
   const [form] = Form.useForm<AtlasRow>()
   const imageUrlValue = Form.useWatch('imageUrl', form)
+  const realImagesTextValue = Form.useWatch('realImagesText' as any, form)
+
+  const parseRealImagesForForm = (v: unknown): string => {
+    if (Array.isArray(v)) return v.map((x) => String(x ?? '').trim()).filter(Boolean).join('\n')
+    const s = String(v ?? '').trim()
+    return s || ''
+  }
+
+  const parseRealImagesForSubmit = (v: unknown): string[] | null => {
+    const lines = String(v ?? '')
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+    return lines.length ? lines : null
+  }
 
   const queryKey = useMemo(() => {
     const sp = new URLSearchParams()
@@ -129,6 +145,31 @@ export default function DashboardProductAtlasPage() {
           <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f1f5f9' }} />
         ),
     },
+    {
+      title: '实物图',
+      dataIndex: 'realImages',
+      key: 'realImages',
+      width: 220,
+      render: (v: unknown, p: AtlasRow) => {
+        const urls = Array.isArray(v) ? v.map((x) => String(x ?? '').trim()).filter(Boolean) : []
+        if (!urls.length) return '-'
+        return (
+          <Space size={6} wrap>
+            {urls.map((url) => (
+              <Image
+                key={`${p.id}-${url}`}
+                src={url}
+                alt={`${p.title}-real`}
+                width={40}
+                height={40}
+                style={{ objectFit: 'cover', borderRadius: 8 }}
+                preview={{ mask: '查看' }}
+              />
+            ))}
+          </Space>
+        )
+      },
+    },
     { title: '商品名', dataIndex: 'title', key: 'title', width: 180, render: (v: string) => v || '-' },
     { title: '大分类', dataIndex: 'majorCategory', key: 'majorCategory', width: 120, render: (v: string | null) => v || '-' },
     { title: '核心能量标签', dataIndex: 'coreEnergyTag', key: 'coreEnergyTag', width: 220, render: (v: string | null) => v || '-' },
@@ -180,6 +221,7 @@ export default function DashboardProductAtlasPage() {
       ...row,
       title: row.title || '',
       imageUrl: row.imageUrl || '',
+      realImagesText: parseRealImagesForForm(row.realImages),
       majorCategory: row.majorCategory || '',
       coreEnergyTag: row.coreEnergyTag || '',
       energyAnalysis: row.energyAnalysis || '',
@@ -191,7 +233,7 @@ export default function DashboardProductAtlasPage() {
       fiveElements: row.fiveElements || '',
       constellation: row.constellation || '',
       chakra: row.chakra || '',
-    })
+    } as any)
   }
 
   const submit = async (values: AtlasRow) => {
@@ -200,6 +242,7 @@ export default function DashboardProductAtlasPage() {
     const payload = {
       title: values.title.trim(),
       imageUrl: (values.imageUrl || '').trim() || null,
+      realImages: parseRealImagesForSubmit((values as any).realImagesText),
       majorCategory: (values.majorCategory || '').trim() || null,
       coreEnergyTag: (values.coreEnergyTag || '').trim() || null,
       energyAnalysis: (values.energyAnalysis || '').trim() || null,
@@ -410,6 +453,16 @@ export default function DashboardProductAtlasPage() {
           <Form.Item name="majorCategory" label="大分类">
             <Input />
           </Form.Item>
+          <Form.Item name={'realImagesText' as any} label="实物图 URL（每行一张）">
+            <Input.TextArea rows={4} placeholder="https://...&#10;https://..." />
+          </Form.Item>
+          {realImagesTextValue ? (
+            <Space size={8} wrap style={{ marginBottom: 12 }}>
+              {parseRealImagesForSubmit(realImagesTextValue)?.map((url) => (
+                <Image key={url} src={url} width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} preview />
+              ))}
+            </Space>
+          ) : null}
           <Form.Item name="coreEnergyTag" label="核心能量标签">
             <Input.TextArea rows={2} />
           </Form.Item>

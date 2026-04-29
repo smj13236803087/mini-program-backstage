@@ -20,6 +20,7 @@ export async function GET() {
         materialCode: true,
         price: true,
         diameter: true,
+        horizontalLength: true,
         inventory: {
           select: {
             quantity: true,
@@ -56,7 +57,8 @@ export async function GET() {
     const materials = (products as any[]).map((p: any) => {
       const atlas = (p as any).atlas || null
       const color = productDisplayColor(atlas || {})
-      const size = (p.diameter || p.horizontalLength || '').trim()
+      const diameter = String(p.diameter || '').trim()
+      const horizontalLength = String(p.horizontalLength || '').trim()
 
       // 小程序目前只用到 id/name/color/size（以及后续可能扩展 energy 标签）
       const six = atlas?.sixDimensions || null
@@ -68,7 +70,8 @@ export async function GET() {
         energy: {},
         energyTag: { emoji: '✨', label: '' },
         price: Number(p.price || 0),
-        size,
+        diameter,
+        horizontalLength,
         color,
         colorSeries: atlas?.colorSeries || '',
         imageUrl: atlas?.imageUrl || null,

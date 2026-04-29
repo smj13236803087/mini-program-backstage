@@ -15,7 +15,9 @@ type ProductRow = {
   title: string
   price: any
   diameter: string | null
+  horizontalLength: string | null
   weight: string | null
+  stock: number
   imageUrl: string | null
   majorCategory: string | null
   productGender: string | null
@@ -44,7 +46,9 @@ type ProductFormValues = {
   materialCode?: string | null
   price: number
   diameter?: string
+  horizontalLength?: string
   weight?: string
+  stock?: number
 }
 
 export default function DashboardProductsPage() {
@@ -75,7 +79,9 @@ export default function DashboardProductsPage() {
     materialCode: '',
     price: 0,
     diameter: '',
+    horizontalLength: '',
     weight: '',
+    stock: 0,
   }
 
   const formInitialValues: ProductFormValues = editing
@@ -83,7 +89,9 @@ export default function DashboardProductsPage() {
         materialCode: editing.materialCode || '',
         price: Number(editing.price || 0),
         diameter: editing.diameter || '',
+        horizontalLength: editing.horizontalLength || '',
         weight: editing.weight || '',
+        stock: Number(editing.stock || 0),
       }
     : emptyFormValues
 
@@ -181,8 +189,10 @@ export default function DashboardProductsPage() {
     const payload: any = {
       price: Number(values.price),
       diameter: (values.diameter || '').trim(),
+      horizontalLength: (values.horizontalLength || '').trim(),
       weight: (values.weight || '').trim() || null,
       materialCode: (values.materialCode || '').trim(),
+      stock: Number(values.stock ?? 0),
     }
     if (!editing) {
       const aid = (values.atlasId || '').trim()
@@ -274,8 +284,10 @@ export default function DashboardProductsPage() {
       render: (v: string | null) => v || '-',
     },
     { title: '单价（元）', dataIndex: 'price', key: 'price', width: 130, render: (v: any) => String(v) },
-    { title: '尺寸', dataIndex: 'diameter', key: 'diameter', width: 130, render: (v: string | null) => v || '-' },
+    { title: '直径', dataIndex: 'diameter', key: 'diameter', width: 130, render: (v: string | null) => v || '-' },
+    { title: '横长', dataIndex: 'horizontalLength', key: 'horizontalLength', width: 130, render: (v: string | null) => v || '-' },
     { title: '重量', dataIndex: 'weight', key: 'weight', width: 130, render: (v: string | null) => v || '-' },
+    { title: '库存', dataIndex: 'stock', key: 'stock', width: 110, render: (v: number) => v ?? 0 },
     {
       title: '操作',
       key: 'actions',
@@ -414,14 +426,19 @@ export default function DashboardProductsPage() {
               name="diameter"
               label="直径"
               style={{ flex: 1, marginBottom: 0 }}
-              rules={[{ required: true, message: '请输入直径' }]}
             >
               <Input placeholder="例如：6mm" />
+            </Form.Item>
+            <Form.Item name="horizontalLength" label="横长" style={{ flex: 1, marginBottom: 0 }}>
+              <Input placeholder="例如：5mm" />
             </Form.Item>
             <Form.Item name="weight" label="重量" style={{ flex: 1, marginBottom: 0 }}>
               <Input placeholder="例如：1.2g" />
             </Form.Item>
           </Space>
+          <Form.Item name="stock" label="库存" rules={[{ required: true, message: '请输入库存' }]}>
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+          </Form.Item>
 
         </Form>
       </Modal>
